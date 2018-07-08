@@ -1,0 +1,2550 @@
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Random;
+import java.util.StringTokenizer;
+
+import bwapi.Player;
+import bwapi.Position;
+import bwapi.Race;
+import bwapi.TechType;
+import bwapi.Unit;
+import bwapi.UnitType;
+import bwapi.UpgradeType;
+import bwta.BaseLocation;
+import bwta.Chokepoint;
+
+/// �긽�솴�쓣 �뙋�떒�븯�뿬, �젙李�, 鍮뚮뱶, 怨듦꺽, 諛⑹뼱 �벑�쓣 �닔�뻾�븯�룄濡� 珥앷큵 吏��쐶瑜� �븯�뒗 class <br>
+/// InformationManager �뿉 �엳�뒗 �젙蹂대뱾濡쒕��꽣 �긽�솴�쓣 �뙋�떒�븯怨�, <br>
+/// BuildManager �쓽 buildQueue�뿉 鍮뚮뱶 (嫄대Ъ 嫄댁꽕 / �쑀�떅 �썕�젴 / �뀒�겕 由ъ꽌移� / �뾽洹몃젅�씠�뱶) 紐낅졊�쓣 �엯�젰�빀�땲�떎.<br>
+/// �젙李�, 鍮뚮뱶, 怨듦꺽, 諛⑹뼱 �벑�쓣 �닔�뻾�븯�뒗 肄붾뱶媛� �뱾�뼱媛��뒗 class
+public class StrategyManager {
+
+	///////////////////////////////////////////////////////////////////
+	/// 
+	/// �젣紐� : Kata2
+	///
+	/// 紐⑺몴 : �궗�씠�삤�땳�뒪�넱 / �씠�씪�뵒�뿉�씠�듃 / �떎�겕�뒪�썫�쓣 �봽濡쒓쾶�씠癒몄쿂�읆 �뜥蹂댁옄
+	///
+	/// �븘�씠�뵒�뼱 : 諛⑹뼱瑜� �듉�듉�엳 媛뽰텛怨� 怨듦꺽 �쑀�떅�쓣 紐⑥쑝�떎媛�, �듅�닔 �쑀�떅怨� �븿猿� 吏꾧꺽�븯�뿬 �듅由ы븳�떎 
+	///
+	/// �젣怨� :
+	///         1. 醫낆”蹂� 諛⑹뼱�삎 鍮뚮뱶�삤�뜑
+	///
+	///         2. �씪袁� �썕�젴, 諛⑹뼱 嫄대Ъ 嫄댁꽕, �뾽洹몃젅�씠�뱶, 由ъ꽌移�, 怨듦꺽 �쑀�떅/�듅�닔�쑀�떅 �깮�궛, 諛⑹뼱�삎 諛곗튂, �쟻 Eliminate �떆�궎湲� 硫붿냼�뱶 
+	/// 
+	/// 李멸��옄 援ы쁽 怨쇱젣 :
+	///
+	///         TODO 1. �븘援� �듅�닔 �쑀�떅�쓣 怨듦꺽 �쑀�떅�뱾怨� �븿猿� �씠�룞�떆�궎�뒗 濡쒖쭅   (�삁�긽 媛쒕컻�떆媛� 10遺�)
+	/// 
+	///         TODO 2. �븘援� �듅�닔 �쑀�떅�씠 湲곗닠�쓣 �쟻�젅�엳 �궗�슜�븯寃� �븯�뒗 濡쒖쭅     (�삁�긽 媛쒕컻�떆媛� 20遺�)
+	///
+	///                 �� �봽濡쒗넗�뒪 : �궗�씠�삤�땳�뒪�넱, �븷猷⑥떆�꽕�씠�뀡
+	///                   �뀒��     : �뵒�렂�떆釉뚮ℓ�듃由��뒪, �씠�씪�뵒�뿉�씠�듃, �빞留덊넗嫄�
+	///                   ��洹�     : �떎�겕�뒪�썫, �뵆�젅�씠洹�
+	/// 
+	/// �꽦怨� 議곌굔 : 而댄벂�꽣�� 1��1濡� �떥�썙 �듅由ы븳�떎
+	/// 
+	///////////////////////////////////////////////////////////////////
+	
+	// �븘援�
+	Player myPlayer;
+	Race myRace;
+	
+	// �쟻援�
+	Player enemyPlayer;
+	Race enemyRace;
+	
+	// �븘援� 怨듦꺽 �쑀�떅 泥ル쾲吏�, �몢踰덉㎏, �꽭踰덉㎏ ���엯                       �봽濡쒗넗�뒪     �뀒��            ��洹�
+	UnitType myCombatUnitType1;					/// 吏덈읉         留덈┛           ��湲�留�
+	UnitType myCombatUnitType2;			  		/// �뱶�씪援�       硫붾뵓           �엳�뱶�씪由ъ뒪�겕
+	UnitType myCombatUnitType3;			  		/// �떎�겕�뀥�뵆�윭   �떆利덊꺊�겕       �윭而�
+
+	// �븘援� �듅�닔 �쑀�떅 泥ル쾲吏�, �몢踰덉㎏ ���엯
+	UnitType mySpecialUnitType1;			  	/// �샃��踰�       �궗�씠�뼵�뒪踰좎벝   �삤踰꾨줈�뱶
+	UnitType mySpecialUnitType2;				/// �븯�씠�뀥�뵆�윭   諛고��겕猷⑥�     �뵒�뙆�씪�윭
+
+	// �뾽洹몃젅�씠�뱶 / 由ъ꽌移� �븷 寃�                                          �봽濡쒗넗�뒪           �뀒��                    ��洹�
+	UpgradeType 	necessaryUpgradeType1;		/// �뱶�씪援곗궗�젙嫄곕━�뾽    留덈┛怨듦꺽�젰�뾽            �엳�뱶�씪�궗�젙嫄곕━�뾽
+	UpgradeType 	necessaryUpgradeType2;		/// 吏덈읉諛쒖뾽            留덈┛�궗�젙嫄곕━�뾽          �엳�뱶�씪諛쒖뾽
+	UpgradeType 	necessaryUpgradeType3;		/// �븯�씠�뀥�뵆�윭�뿉�꼫吏��뾽  �궗�씠�뼵�뒪踰좎뒳�뿉�꼫吏��뾽    �삤踰꾨줈�뱶�냽�룄�뾽
+
+	TechType 		necessaryTechType1;			/// �궗�씠�삤�땳�뒪�넱        �떆利덈え�뱶                �윭而�
+	TechType 		necessaryTechType2;			/// �븷猷⑥떆�꽕�씠�뀡        �씠�씪�뵒�뿉�씠�듃            而⑥뒛           
+	TechType 		necessaryTechType3;			///              �빞留덊넗嫄�                �뵆�젅�씠洹�       
+
+	// �븘援� 怨듦꺽 �쑀�떅 �깮�궛 �닚�꽌 
+	int[] buildOrderArrayOfMyCombatUnitType;	/// �븘援� 怨듦꺽 �쑀�떅 泥ル쾲吏� ���엯, �몢踰덉㎏ ���엯 �깮�궛 �닚�꽌
+	int nextTargetIndexOfBuildOrderArray;	/// buildOrderArrayMyCombatUnitType �뿉�꽌 �떎�쓬 �깮�궛���긽 �븘援� 怨듦꺽 �쑀�떅
+
+	// �븘援곗쓽 怨듦꺽�쑀�떅 �닽�옄
+	int necessaryNumberOfCombatUnitType1;		/// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �쑀�떅 �닽�옄 
+	int necessaryNumberOfCombatUnitType2;		/// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �쑀�떅 �닽�옄 
+	int necessaryNumberOfCombatUnitType3;		/// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �쑀�떅 �닽�옄
+	int myKilledCombatUnitCount1;				/// 泥ル쾲吏� �쑀�떅 ���엯�쓽 �궗留앹옄 �닽�옄 �늻�쟻媛�
+	int myKilledCombatUnitCount2;				/// �몢踰덉㎏ �쑀�떅 ���엯�쓽 �궗留앹옄 �닽�옄 �늻�쟻媛�
+	int myKilledCombatUnitCount3;				/// �꽭踰덉㎏ �쑀�떅 ���엯�쓽 �궗留앹옄 �닽�옄 �늻�쟻媛�
+
+	// �븘援곗쓽 �듅�닔�쑀�떅 �닽�옄
+	int necessaryNumberOfSpecialUnitType1;		/// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �듅�닔 �쑀�떅 �닽�옄 
+	int necessaryNumberOfSpecialUnitType2;		/// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �듅�닔 �쑀�떅 �닽�옄 
+	int maxNumberOfSpecialUnitType1;			/// 理쒕� 紐뉕컻源뚯� �깮�궛 / �쟾�닾李멸� �떆�궗寃껋씤媛�  
+	int maxNumberOfSpecialUnitType2;			/// 理쒕� 紐뉕컻源뚯� �깮�궛 / �쟾�닾李멸� �떆�궗寃껋씤媛� 
+	int myKilledSpecialUnitCount1;				/// 泥ル쾲吏� �듅�닔 �쑀�떅 ���엯�쓽 �궗留앹옄 �닽�옄 �늻�쟻媛�
+	int myKilledSpecialUnitCount2;				/// �몢踰덉㎏ �듅�닔 �쑀�떅 ���엯�쓽 �궗留앹옄 �닽�옄 �늻�쟻媛�
+	
+	// �븘援� 怨듦꺽 �쑀�떅 紐⑸줉	
+	ArrayList<Unit> myAllCombatUnitList = new ArrayList<Unit>();      
+	
+	ArrayList<Unit> myCombatUnitType1List = new ArrayList<Unit>();      
+	ArrayList<Unit> myCombatUnitType2List = new ArrayList<Unit>();      
+	ArrayList<Unit> myCombatUnitType3List = new ArrayList<Unit>();      
+
+	ArrayList<Unit> mySpecialUnitType1List = new ArrayList<Unit>();       
+	ArrayList<Unit> mySpecialUnitType2List = new ArrayList<Unit>();       
+	
+	// �븘援� 諛⑹뼱 嫄대Ъ 泥ル쾲吏�, �몢踰덉㎏ ���엯
+	UnitType myDefenseBuildingType1;			/// �뙆�씪�윴 踰숈빱 �겕由쎌퐳濡쒕땲
+	UnitType myDefenseBuildingType2;			/// �룷�넠  �꽣�젢  �꽦�겙肄쒕줈�땲
+
+	// �븘援� 諛⑹뼱 嫄대Ъ 嫄댁꽕 �닽�옄
+	int necessaryNumberOfDefenseBuilding1;		/// 諛⑹뼱 嫄대Ъ 嫄댁꽕 媛��닔
+	int necessaryNumberOfDefenseBuilding2;		/// 諛⑹뼱 嫄대Ъ 嫄댁꽕 媛��닔
+
+	// �븘援� 諛⑹뼱 嫄대Ъ 嫄댁꽕 �쐞移�
+	BuildOrderItem.SeedPositionStrategy seedPositionStrategyOfMyDefenseBuildingType;
+	BuildOrderItem.SeedPositionStrategy seedPositionStrategyOfMyCombatUnitTrainingBuildingType;
+
+	// �븘援� 諛⑹뼱 嫄대Ъ 紐⑸줉 
+	ArrayList<Unit> myDefenseBuildingType1List = new ArrayList<Unit>();  // �뙆�씪�윴 踰숈빱 �겕由�
+	ArrayList<Unit> myDefenseBuildingType2List = new ArrayList<Unit>();  // 罹먮끉   �꽣�젢 �꽦�겙
+
+	// �쟻援� 怨듦꺽 �쑀�떅 �닽�옄
+	int numberOfCompletedEnemyCombatUnit;
+	int numberOfCompletedEnemyWorkerUnit;
+
+	// �쟻援� �쑀�떅 �궗留앹옄 �닔 
+	int enemyKilledCombatUnitCount;					/// �쟻援� 怨듦꺽�쑀�떅 �궗留앹옄 �닽�옄 �늻�쟻媛�
+	int enemyKilledWorkerUnitCount;					/// �쟻援� �씪袁쇱쑀�떅 �궗留앹옄 �닽�옄 �늻�쟻媛�
+	
+	
+	// �븘援� / �쟻援곗쓽 蹂몄쭊, 泥ル쾲吏� 湲몃ぉ, �몢踰덉㎏ 湲몃ぉ
+	BaseLocation myMainBaseLocation; 
+	BaseLocation myFirstExpansionLocation; 
+	Chokepoint myFirstChokePoint;
+	Chokepoint mySecondChokePoint;
+	BaseLocation enemyMainBaseLocation;
+	BaseLocation enemyFirstExpansionLocation; 
+	Chokepoint enemyFirstChokePoint;
+	Chokepoint enemySecondChokePoint;
+		
+	boolean isInitialBuildOrderFinished;	/// setInitialBuildOrder �뿉�꽌 �엯�젰�븳 鍮뚮뱶�삤�뜑媛� �떎 �걹�굹�꽌 鍮뚮뱶�삤�뜑�걧媛� empty �릺�뿀�뒗吏� �뿬遺�
+
+	enum CombatState { 
+		defenseMode,						// �븘援� 吏꾩� 諛⑹뼱
+		attackStarted,						// �븘援� �쑀�떅�쑝濡� �쟻 怨듦꺽 �떆�옉
+		eliminateEnemy						// �쟻 Eliminate 
+	};
+		
+	CombatState combatState;				/// �쟾�닾 �긽�솴
+
+	public StrategyManager() {
+	}
+
+	/// 寃쎄린媛� �떆�옉�맆 �븣 �씪�쉶�쟻�쑝濡� �쟾�왂 珥덇린 �꽭�똿 愿��젴 濡쒖쭅�쓣 �떎�뻾�빀�땲�떎
+	public void onStart() {
+		
+		// BasicBot 1.1 Patch Start ////////////////////////////////////////////////
+		// 寃쎄린 寃곌낵 �뙆�씪 Save / Load 諛� 濡쒓렇�뙆�씪 Save �삁�젣 異붽�
+		
+		// 怨쇨굅 寃뚯엫 湲곕줉�쓣 濡쒕뵫�빀�땲�떎
+		loadGameRecordList();
+		
+		// BasicBot 1.1 Patch End //////////////////////////////////////////////////
+
+		/// 蹂��닔 珥덇린媛믪쓣 �꽕�젙�빀�땲�떎
+		setVariables();
+
+		/// 寃뚯엫 珥덇린�뿉 �궗�슜�븷 鍮뚮뱶�삤�뜑瑜� �꽭�똿�빀�땲�떎
+		setInitialBuildOrder();		
+	}
+	
+	/// 蹂��닔 珥덇린媛믪쓣 �꽕�젙�빀�땲�떎
+	void setVariables(){
+		
+		// 李멸��옄猿섏꽌 �옄�쑀濡�寃� 珥덇린媛믪쓣 �닔�젙�븯�뀛�룄 �맗�땲�떎 
+		
+		myPlayer = MyBotModule.Broodwar.self();
+		myRace = MyBotModule.Broodwar.self().getRace();
+		enemyPlayer = InformationManager.Instance().enemyPlayer;
+
+		myKilledCombatUnitCount1 = 0;
+		myKilledCombatUnitCount2 = 0;
+		myKilledCombatUnitCount3 = 0;
+		
+		numberOfCompletedEnemyCombatUnit = 0;
+		numberOfCompletedEnemyWorkerUnit = 0;
+		enemyKilledCombatUnitCount = 0;
+		enemyKilledWorkerUnitCount = 0;
+	
+		isInitialBuildOrderFinished = false;
+		combatState = CombatState.defenseMode;
+		
+		if (myRace == Race.Protoss) {
+
+			// 怨듦꺽 �쑀�떅 醫낅쪟 �꽕�젙 
+			myCombatUnitType1 = UnitType.Protoss_Zealot;		
+			myCombatUnitType2 = UnitType.Protoss_Scout;
+			myCombatUnitType3 = UnitType.Protoss_Dark_Templar;
+			
+			// 怨듦꺽 紐⑤뱶濡� �쟾�솚�븯湲� �쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �쑀�떅 �닽�옄 �꽕�젙
+			necessaryNumberOfCombatUnitType1 = 6;			            // 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 吏덈읉 �쑀�떅 �닽�옄 
+			necessaryNumberOfCombatUnitType2 = 6;                     	// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �뱶�씪援� �쑀�떅 �닽�옄 
+			necessaryNumberOfCombatUnitType3 = 2;                     	// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �떎�겕�뀥�뵆�윭 �쑀�떅 �닽�옄 
+			
+			// 怨듦꺽 �쑀�떅 �깮�궛 �닚�꽌 �꽕�젙
+			buildOrderArrayOfMyCombatUnitType = new int[]{1,2,2,3};		// �깮�궛 �닚�꽌 : 吏덈읉 �뱶�씪援� �뱶�씪援� �떎�겕�뀥�뵆�윭 ...
+			nextTargetIndexOfBuildOrderArray = 0; 	    		// �떎�쓬 �깮�궛 �닚�꽌 index
+
+			// �듅�닔 �쑀�떅 醫낅쪟 �꽕�젙 
+			mySpecialUnitType1 = UnitType.Protoss_Observer;
+			mySpecialUnitType2 = UnitType.Protoss_High_Templar;
+
+			// 怨듦꺽 紐⑤뱶濡� �쟾�솚�븯湲� �쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �쑀�떅 �닽�옄 �꽕�젙
+			necessaryNumberOfSpecialUnitType1 = 1;	                 	 
+			necessaryNumberOfSpecialUnitType2 = 1;	               
+			
+			// �듅�닔 �쑀�떅�쓣 理쒕� 紐뉕컻源뚯� �깮�궛 / �쟾�닾李멸� �떆�궗寃껋씤媛�
+			maxNumberOfSpecialUnitType1 = 4;  
+			maxNumberOfSpecialUnitType2 = 4;  
+						
+			// 諛⑹뼱 嫄대Ъ 醫낅쪟 諛� 嫄댁꽕 媛��닔 �꽕�젙
+			myDefenseBuildingType1 = UnitType.Protoss_Pylon;
+			necessaryNumberOfDefenseBuilding1 = 1; 					
+			myDefenseBuildingType2 = UnitType.Protoss_Photon_Cannon;
+			necessaryNumberOfDefenseBuilding2 = 3; 					
+
+			// 諛⑹뼱 嫄대Ъ 嫄댁꽕 �쐞移� �꽕�젙
+			seedPositionStrategyOfMyDefenseBuildingType 
+				= BuildOrderItem.SeedPositionStrategy.SecondChokePoint;	// �몢踰덉㎏ 湲몃ぉ
+			seedPositionStrategyOfMyCombatUnitTrainingBuildingType 
+				= BuildOrderItem.SeedPositionStrategy.SecondChokePoint;	// �몢踰덉㎏ 湲몃ぉ
+			
+			// �뾽洹몃젅�씠�뱶 諛� 由ъ꽌移� ���긽 �꽕�젙
+			necessaryUpgradeType1 = UpgradeType.Singularity_Charge;
+			necessaryUpgradeType2 = UpgradeType.Leg_Enhancements;
+			necessaryUpgradeType3 = UpgradeType.Khaydarin_Amulet;
+			necessaryTechType1 = TechType.Psionic_Storm;
+			necessaryTechType2 = TechType.Hallucination;
+			necessaryTechType3 = null;
+		}
+		else if (myRace == Race.Terran) {
+
+			// 怨듦꺽 �쑀�떅 醫낅쪟 �꽕�젙  
+			myCombatUnitType1 = UnitType.Terran_Marine;
+			myCombatUnitType2 = UnitType.Terran_Medic;
+			myCombatUnitType3 = UnitType.Terran_Siege_Tank_Tank_Mode;
+			
+			// 怨듦꺽 紐⑤뱶濡� �쟾�솚�븯湲� �쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �쑀�떅 �닽�옄 �꽕�젙
+			necessaryNumberOfCombatUnitType1 = 12;                      // 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 留덈┛ �쑀�떅 �닽�옄 
+			necessaryNumberOfCombatUnitType2 = 4;                       // 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 硫붾뵓 �쑀�떅 �닽�옄 
+			necessaryNumberOfCombatUnitType3 = 2;                       // 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �떆利덊꺊�겕 �쑀�떅 �닽�옄 
+			
+			// 怨듦꺽 �쑀�떅 �깮�궛 �닚�꽌 �꽕�젙
+			buildOrderArrayOfMyCombatUnitType = new int[]{1,1,1,2,3}; 	// 留덈┛ 留덈┛ 留덈┛ 硫붾뵓 �떆利덊꺊�겕 ...
+			nextTargetIndexOfBuildOrderArray = 0; 			    // �떎�쓬 �깮�궛 �닚�꽌 index
+			
+			// �듅�닔 �쑀�떅 醫낅쪟 �꽕�젙 
+			mySpecialUnitType1 = UnitType.Terran_Science_Vessel;			
+			mySpecialUnitType2 = UnitType.Terran_Battlecruiser;
+			
+			// 怨듦꺽 紐⑤뱶濡� �쟾�솚�븯湲� �쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �쑀�떅 �닽�옄 �꽕�젙
+			necessaryNumberOfSpecialUnitType1 = 1;		             	 
+			necessaryNumberOfSpecialUnitType2 = 1;	
+			
+			// �듅�닔 �쑀�떅�쓣 理쒕� 紐뉕컻源뚯� �깮�궛 / �쟾�닾李멸� �떆�궗寃껋씤媛�
+			maxNumberOfSpecialUnitType1 = 4;  
+			maxNumberOfSpecialUnitType2 = 4;  
+
+			// 諛⑹뼱 嫄대Ъ 醫낅쪟 諛� 嫄댁꽕 媛��닔 �꽕�젙
+			myDefenseBuildingType1 = UnitType.Terran_Bunker;
+			necessaryNumberOfDefenseBuilding1 = 3; 						
+			myDefenseBuildingType2 = UnitType.Terran_Missile_Turret;
+			necessaryNumberOfDefenseBuilding2 = 1;						
+			
+			// 諛⑹뼱 嫄대Ъ 嫄댁꽕 �쐞移� �꽕�젙
+			seedPositionStrategyOfMyDefenseBuildingType 
+				= BuildOrderItem.SeedPositionStrategy.SecondChokePoint;	// �몢踰덉㎏ 湲몃ぉ
+			seedPositionStrategyOfMyCombatUnitTrainingBuildingType 
+				= BuildOrderItem.SeedPositionStrategy.SecondChokePoint;	// �몢踰덉㎏ 湲몃ぉ
+
+			// �뾽洹몃젅�씠�뱶 諛� 由ъ꽌移� ���긽 �꽕�젙
+			necessaryUpgradeType1 = UpgradeType.U_238_Shells;
+			necessaryUpgradeType2 = UpgradeType.Terran_Infantry_Weapons;
+			necessaryUpgradeType3 = UpgradeType.Titan_Reactor;
+			necessaryTechType1 = TechType.Tank_Siege_Mode;
+			necessaryTechType2 = TechType.Irradiate;
+			necessaryTechType3 = TechType.Yamato_Gun;
+		}
+		else if (myRace == Race.Zerg) {
+			
+			// 怨듦꺽 �쑀�떅 醫낅쪟 �꽕�젙 
+			myCombatUnitType1 = UnitType.Zerg_Zergling;
+			myCombatUnitType2 = UnitType.Zerg_Hydralisk;
+			myCombatUnitType3 = UnitType.Zerg_Lurker;
+
+			// 怨듦꺽 紐⑤뱶濡� �쟾�솚�븯湲� �쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �쑀�떅 �닽�옄 �꽕�젙
+			necessaryNumberOfCombatUnitType1 = 8;                     	// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 ��湲�留� �쑀�떅 �닽�옄 
+			necessaryNumberOfCombatUnitType2 = 8;                     	// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �엳�뱶�씪 �쑀�떅 �닽�옄 
+			necessaryNumberOfCombatUnitType3 = 2;                     	// 怨듦꺽�쓣 �떆�옉�븯湲곗쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �윭而� �쑀�떅 �닽�옄 
+
+			// 怨듦꺽 �쑀�떅 �깮�궛 �닚�꽌 �꽕�젙
+			buildOrderArrayOfMyCombatUnitType = new int[]{1,1,2,2,2,3}; 	// ��湲�留� ��湲�留� �엳�뱶�씪 �엳�뱶�씪 �엳�뱶�씪 �윭而� ...
+			nextTargetIndexOfBuildOrderArray = 0; 			    	// �떎�쓬 �깮�궛 �닚�꽌 index
+
+			// �듅�닔 �쑀�떅 醫낅쪟 �꽕�젙 
+			mySpecialUnitType1 = UnitType.Zerg_Overlord;
+			mySpecialUnitType2 = UnitType.Zerg_Defiler;
+
+			// 怨듦꺽 紐⑤뱶濡� �쟾�솚�븯湲� �쐞�빐 �븘�슂�븳 理쒖냼�븳�쓽 �쑀�떅 �닽�옄 �꽕�젙
+			necessaryNumberOfSpecialUnitType1 = 1;	                 	 
+			necessaryNumberOfSpecialUnitType2 = 1;	                 	 
+			
+			// �듅�닔 �쑀�떅�쓣 理쒕� 紐뉕컻源뚯� �깮�궛 / �쟾�닾李멸� �떆�궗寃껋씤媛�
+			maxNumberOfSpecialUnitType1 = 4;  
+			maxNumberOfSpecialUnitType2 = 2;  
+
+			// 諛⑹뼱 嫄대Ъ 醫낅쪟 諛� 嫄댁꽕 媛��닔 �꽕�젙
+			myDefenseBuildingType1 = UnitType.Zerg_Creep_Colony;
+			necessaryNumberOfDefenseBuilding1 = 3; 					
+			myDefenseBuildingType2 = UnitType.Zerg_Sunken_Colony;
+			necessaryNumberOfDefenseBuilding2 = 3; 					
+		
+			// 諛⑹뼱 嫄대Ъ 嫄댁꽕 �쐞移� �꽕�젙 
+			seedPositionStrategyOfMyDefenseBuildingType 
+				= BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation;	// �븵留덈떦
+			seedPositionStrategyOfMyCombatUnitTrainingBuildingType 
+				= BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation;	// �븵留덈떦
+		
+			// �뾽洹몃젅�씠�뱶 諛� 由ъ꽌移� ���긽 �꽕�젙
+			necessaryUpgradeType1 = UpgradeType.Grooved_Spines;
+			necessaryUpgradeType2 = UpgradeType.Muscular_Augments;
+			necessaryUpgradeType3 = UpgradeType.Pneumatized_Carapace;
+			necessaryTechType1 = TechType.Lurker_Aspect;
+			necessaryTechType2 = TechType.Consume;
+			necessaryTechType3 = TechType.Plague;
+		}
+	}
+
+	/// 寃뚯엫 珥덇린�뿉 �궗�슜�븷 鍮뚮뱶�삤�뜑瑜� �꽭�똿�빀�땲�떎
+	public void setInitialBuildOrder() {
+		
+		// �봽濡쒗넗�뒪 : 珥덇린�뿉 �룷�넠 罹먮끉�쑝濡� 諛⑹뼱�븯硫� 吏덈읉 �뱶�씪援� �쓣 �깮�궛�빀�땲�떎
+		// �뀒��     : 珥덇린�뿉 踰숈빱�� 留덈┛�쑝濡� 諛⑹뼱�븯硫� 留덈┛ 硫붾뵓 �쓣 �깮�궛�빀�땲�떎
+		// ��洹�     : 珥덇린�뿉 �꽦�겙怨� ��湲�留곸쑝濡� 諛⑹뼱�븯硫� ��湲�留� �엳�뱶�씪 瑜� �깮�궛�빀�땲�떎
+
+		// 李멸��옄猿섏꽌 �옄�쑀濡�寃� 鍮뚮뱶�삤�뜑瑜� �닔�젙�븯�뀛�룄 �맗�땲�떎 
+		
+		if (MyBotModule.Broodwar.self().getRace() == Race.Protoss) {
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+
+			// SupplyUsed가 7 일때 파일런 빌드
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Pylon, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			// SupplyUsed가 8 일때 1번째 게이트웨이 빌드
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Forge, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Nexus, BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			
+			// SupplyUsed가 9 일때 가스 리파이너리 빌드	
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Photon_Cannon, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Gateway, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Photon_Cannon, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getRefineryBuildingType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Cybernetics_Core, BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);				BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);				BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Stargate, BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType());
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);				BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);				BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Photon_Cannon, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Photon_Cannon, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);				
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);				BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Stargate, BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Assimilator, BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Gateway, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UpgradeType.Protoss_Air_Weapons, false);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);				BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);			
+
+					BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+					BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+					BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+					BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+					BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Stargate, BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+
+					BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+					BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);				BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);				BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getWorkerType(),
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation, true);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UpgradeType.Protoss_Air_Armor, false);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Zealot);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UpgradeType.Protoss_Plasma_Shields, false);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+
+
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Stargate, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Scout,BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(InformationManager.Instance().getBasicSupplyProviderUnitType(), BuildOrderItem.SeedPositionStrategy.MainBaseLocation);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Protoss_Stargate, BuildOrderItem.SeedPositionStrategy.SecondChokePoint);
+
+
+			
+		} 
+		else if (MyBotModule.Broodwar.self().getRace() == Race.Terran) {
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 5
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 6
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 7
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 8
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Supply_Depot); 
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 9
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 10
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Barracks,
+					seedPositionStrategyOfMyDefenseBuildingType); 
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 11
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 12
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Bunker,
+					seedPositionStrategyOfMyDefenseBuildingType); 
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 13
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 14
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Engineering_Bay);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 15
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Supply_Depot); 
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 16
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 17
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Missile_Turret,
+					seedPositionStrategyOfMyDefenseBuildingType);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Barracks); 
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 18
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Bunker,
+					seedPositionStrategyOfMyDefenseBuildingType); 
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 19
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 20
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 21
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Academy);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Refinery);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Supply_Depot); 
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 22
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 23
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 24
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Bunker,
+					seedPositionStrategyOfMyDefenseBuildingType); 
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 25
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 26
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 27
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 28
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 29
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 30
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Supply_Depot); 
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Factory); 
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Command_Center,
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation);
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Refinery,
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation);
+		} 
+		else if (MyBotModule.Broodwar.self().getRace() == Race.Zerg) {
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//5
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//6
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//7
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//8
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//9
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Overlord); // �몢踰덉㎏ �삤踰꾨줈�뱶
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//10
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//11
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//12
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Spawning_Pool); //11 �뒪�룷�떇��
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Hatchery,
+					seedPositionStrategyOfMyDefenseBuildingType); //10 �빐泥섎━
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//11
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//12
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Zergling, false);	//13
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Zergling, false);	//14
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Zergling, false);	//15
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Hatchery,
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation); //14 �빐泥섎━
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Overlord);	// �꽭踰덉㎏ �삤踰꾨줈�뱶
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//15
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//16
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//17
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Creep_Colony,
+					seedPositionStrategyOfMyDefenseBuildingType);	//16
+						
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Zergling);	//17
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Zergling);	//18
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Zergling);	//19
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//20
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//21
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Sunken_Colony);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Creep_Colony,
+					seedPositionStrategyOfMyDefenseBuildingType);	//20
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Extractor); //19
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//20
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Creep_Colony,
+					seedPositionStrategyOfMyDefenseBuildingType);	//19
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//20
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//21
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//22
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Overlord);	// �꽕踰덉㎏ �삤踰꾨줈�뱶
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Sunken_Colony);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Hydralisk_Den);	//21
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Zergling);	//22
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Zergling);	//23
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Zergling);	//24			
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Hydralisk);	//25
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Hydralisk);	//26
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Hydralisk);	//27			
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Sunken_Colony);
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Lair);
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Evolution_Chamber, false); //26
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Overlord);	// �떎�꽢踰덉㎏ �삤踰꾨줈�뱶
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//27
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//28
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//29
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//30
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//31
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//32
+			
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Extractor,
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation); //31
+
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//32
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//33
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//34
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//35
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//36
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//37
+		}
+	}
+
+	/// 寃쎄린 吏꾪뻾 以� 留� �봽�젅�엫留덈떎 寃쎄린 �쟾�왂 愿��젴 濡쒖쭅�쓣 �떎�뻾�빀�땲�떎
+	public void update() {
+
+		/// 蹂��닔 媛믪쓣 �뾽�뜲�씠�듃 �빀�땲�떎
+		updateVariables();
+
+		/// �씪袁쇱쓣 怨꾩냽 異붽� �깮�궛�빀�땲�떎
+		executeWorkerTraining();
+
+		/// Supply DeadLock �삁諛� 諛� SupplyProvider 媛� 遺�議깊빐吏� �긽�솴 �뿉 ���븳 �꽑�젣�쟻 ���쓳�쑝濡쒖꽌 SupplyProvider瑜� 異붽� 嫄댁꽕/�깮�궛�빀�땲�떎
+		executeSupplyManagement();
+
+		/// 諛⑹뼱嫄대Ъ 諛� 怨듦꺽�쑀�떅 �깮�궛 嫄대Ъ�쓣 嫄댁꽕�빀�땲�떎
+		executeBuildingConstruction();
+
+		/// �뾽洹몃젅�씠�뱶 諛� �뀒�겕 由ъ꽌移섎�� �떎�뻾�빀�땲�떎
+		executeUpgradeAndTechResearch();
+
+		/// �듅�닔 �쑀�떅�쓣 �깮�궛�븷 �닔 �엳�룄濡� �뀒�겕�듃由ъ뿉 �뵲�씪 嫄댁꽕�쓣 �떎�떆�빀�땲�떎
+		executeTechTreeUpConstruction();
+
+		/// 怨듦꺽�쑀�떅�쓣 怨꾩냽 異붽� �깮�궛�빀�땲�떎
+		executeCombatUnitTraining();
+
+		/// �쟾諛섏쟻�씤 �쟾�닾 濡쒖쭅 �쓣 媛뽮퀬 �쟾�닾瑜� �닔�뻾�빀�땲�떎
+		executeCombat();
+
+		/// StrategyManager �쓽 �닔�뻾�긽�솴�쓣 �몴�떆�빀�땲�떎
+		drawStrategyManagerStatus();
+
+		// BasicBot 1.1 Patch Start ////////////////////////////////////////////////
+		// 寃쎄린 寃곌낵 �뙆�씪 Save / Load 諛� 濡쒓렇�뙆�씪 Save �삁�젣 異붽�
+
+		// �씠踰� 寃뚯엫�쓽 濡쒓렇瑜� �궓源곷땲�떎
+		saveGameLog();
+		
+		// BasicBot 1.1 Patch End //////////////////////////////////////////////////
+	}
+	
+	/// �쟾諛섏쟻�씤 �쟾�닾 濡쒖쭅 �쓣 媛뽮퀬 �쟾�닾瑜� �닔�뻾�빀�땲�떎
+	public void executeCombat() {
+
+		// 怨듦꺽�쓣 �떆�옉�븷留뚰븳 �긽�솴�씠 �릺湲� �쟾源뚯��뒗 諛⑹뼱瑜� �빀�땲�떎
+		if (combatState == CombatState.defenseMode) {
+
+			/// �븘援� 怨듦꺽�쑀�떅 �뱾�뿉寃� 諛⑹뼱瑜� 吏��떆�빀�땲�떎
+			commandMyCombatUnitToDefense();
+
+			/// 怨듦꺽 紐⑤뱶濡� �쟾�솚�븷 �븣�씤吏� �뿬遺�瑜� �뙋�떒�빀�땲�떎			
+			if (isTimeToStartAttack() ) {
+				combatState = CombatState.attackStarted;
+			}
+		}
+		// 怨듦꺽�쓣 �떆�옉�븳 �썑�뿉�뒗 怨듦꺽�쓣 怨꾩냽 �떎�뻾�븯�떎媛�, 嫄곗쓽 �쟻援� 湲곗�瑜� �뙆愿댄븯硫� Eliminate �떆�궎湲곕�� �빀�땲�떎 
+		else if (combatState == CombatState.attackStarted) {
+
+			/// �븘援� 怨듦꺽�쑀�떅 �뱾�뿉寃� 怨듦꺽�쓣 吏��떆�빀�땲�떎
+			commandMyCombatUnitToAttack();
+
+			/// 諛⑹뼱 紐⑤뱶濡� �쟾�솚�븷 �븣�씤吏� �뿬遺�瑜� �뙋�떒�빀�땲�떎			
+			if (isTimeToStartDefense() ) {
+				combatState = CombatState.defenseMode;
+			}	
+			
+			/// �쟻援곗쓣 Eliminate �떆�궎�뒗 紐⑤뱶濡� �쟾�솚�븷吏� �뿬遺�瑜� �뙋�떒�빀�땲�떎 
+			if (isTimeToStartElimination() ) {
+				combatState = CombatState.eliminateEnemy;
+			}
+		}
+		else if (combatState == CombatState.eliminateEnemy) {
+			/// �쟻援곗쓣 Eliminate �떆�궎�룄濡� �븘援� 怨듦꺽 �쑀�떅�뱾�뿉寃� 吏��떆�빀�땲�떎
+			commandMyCombatUnitToEliminate();	
+		}
+	}
+	
+	/// 怨듦꺽 紐⑤뱶濡� �쟾�솚�븷 �븣�씤吏� �뿬遺�瑜� 由ы꽩�빀�땲�떎
+	boolean isTimeToStartAttack(){
+
+			if (MyBotModule.Broodwar.self().completedUnitCount(UnitType.Protoss_Scout) >= 24) {
+				if (InformationManager.Instance().enemyPlayer != null
+					&& InformationManager.Instance().enemyRace != Race.Unknown  
+					&& InformationManager.Instance().getOccupiedBaseLocations(InformationManager.Instance().enemyPlayer).size() > 0) {				
+					return true;
+					
+				}
+				else {
+					return false;
+				}
+			}
+			else {
+				return false;
+			}
+		
+		
+	}
+
+	/// 諛⑹뼱 紐⑤뱶濡� �쟾�솚�븷 �븣�씤吏� �뿬遺�瑜� 由ы꽩�빀�땲�떎
+	boolean isTimeToStartDefense() {
+		
+		// 怨듦꺽 �쑀�떅 �닽�옄媛� 10 誘몃쭔�쑝濡� �뼥�뼱吏�硫� �썑�눜
+		if (myCombatUnitType1List.size() + myCombatUnitType2List.size() + myCombatUnitType3List.size() < 10) 
+		{
+			return true;
+		}
+		return false;
+	}
+
+	/// �쟻援곗쓣 Eliminate �떆�궎�뒗 紐⑤뱶濡� �쟾�솚�븷吏� �뿬遺�瑜� 由ы꽩�빀�땲�떎 
+	boolean isTimeToStartElimination(){
+
+		// �쟻援� �쑀�떅�쓣 留롮씠 二쎌�怨�, �븘援� �꽌�뵆�씪�씠媛� 100 �쓣 �꽆�뿀�쑝硫�
+		if (enemyKilledCombatUnitCount >= 20 && enemyKilledWorkerUnitCount >= 10 && myPlayer.supplyUsed() > 100 * 2) {
+
+			// �쟻援� 蹂몄쭊�뿉 �븘援� �쑀�떅�씠 30 �씠�긽 �룄李⑺뻽�쑝硫� 嫄곗쓽 寃뚯엫 �걹�궃 寃�
+			int myUnitCountAroundEnemyMainBaseLocation = 0;
+			for(Unit unit : MyBotModule.Broodwar.getUnitsInRadius(enemyMainBaseLocation.getPosition(), 8 * Config.TILE_SIZE)) {
+				if (unit.getPlayer() == myPlayer) {
+					myUnitCountAroundEnemyMainBaseLocation ++;
+				}				
+			}
+			if (myUnitCountAroundEnemyMainBaseLocation > 30) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+	/// �븘援� 怨듦꺽�쑀�떅 �뱾�뿉寃� 諛⑹뼱瑜� 吏��떆�빀�땲�떎
+	void commandMyCombatUnitToDefense(){
+
+		// �븘援� 諛⑹뼱 嫄대Ъ�씠 �꽭�썙�졇�엳�뒗 �쐞移�
+		Position myDefenseBuildingPosition = null;
+		switch (seedPositionStrategyOfMyDefenseBuildingType) {
+			case MainBaseLocation: myDefenseBuildingPosition = myMainBaseLocation.getPosition(); break;
+			case FirstChokePoint: myDefenseBuildingPosition = myFirstChokePoint.getCenter(); break;
+			case FirstExpansionLocation: myDefenseBuildingPosition = myFirstExpansionLocation.getPosition(); break;
+			case SecondChokePoint: myDefenseBuildingPosition = mySecondChokePoint.getCenter(); break;
+			default: myDefenseBuildingPosition = myMainBaseLocation.getPosition(); break;
+		}
+
+		// �븘援� 怨듦꺽�쑀�떅�쓣 諛⑹뼱 嫄대Ъ�씠 �꽭�썙�졇�엳�뒗 �쐞移섎줈 諛곗튂�떆�궢�땲�떎
+		// �븘援� 怨듦꺽�쑀�떅�쓣 �븘援� 諛⑹뼱 嫄대Ъ �뮘履쎌뿉 諛곗튂�떆耳곕떎媛� �쟻�뱾�씠 諛⑹뼱 嫄대Ъ�쓣 怨듦꺽�븯湲� �떆�옉�뻽�쓣 �븣 �떎�븿猿� �떥�슦寃뚰븯硫� �뜑 醫뗭쓣 寃껋엯�땲�떎
+		for (Unit unit : myAllCombatUnitList) {
+
+			if (unit == null || unit.exists() == false) continue;
+			
+			boolean hasCommanded = false;
+
+			// �뀒�� 醫낆” 留덈┛�쓽 寃쎌슦 留덈┛�쓣 踰숈빱�븞�뿉 吏묒뼱�꽔湲�
+			if (unit.getType() == UnitType.Terran_Marine) {
+				for(Unit bunker : myDefenseBuildingType1List) {
+					if (bunker.getLoadedUnits().size() < 4 && bunker.canLoad(unit)) {
+						commandUtil.rightClick(unit, bunker);
+						hasCommanded = true;
+					}
+				}
+			}
+			
+			if (unit.getType() == UnitType.Terran_Siege_Tank_Tank_Mode || unit.getType() == UnitType.Terran_Siege_Tank_Siege_Mode) {
+				hasCommanded = controlSiegeTankUnitType(unit);
+			}
+			if (unit.getType() == UnitType.Zerg_Lurker) {
+				hasCommanded = controlLurkerUnitType(unit);
+			}
+			if (unit.getType() == mySpecialUnitType1) {					
+				hasCommanded = controlSpecialUnitType1(unit);
+			}
+			if (unit.getType() == mySpecialUnitType2) {					
+				hasCommanded = controlSpecialUnitType2(unit);
+			}
+			
+			// �뵲濡� 紐낅졊 �궡由� �쟻�씠 �뾾�쑝硫�, 諛⑹뼱 嫄대Ъ 二쇱쐞濡� �씠�룞�떆�궓�떎
+			if (hasCommanded == false) {
+
+				if (unit.isIdle()) {				
+					if (unit.canAttack()) {
+						commandUtil.attackMove(unit, myDefenseBuildingPosition);
+					}
+					else {
+						commandUtil.move(unit, myDefenseBuildingPosition);
+					}
+				}
+			}
+		}	
+	}
+	
+	/// �븘援� 怨듦꺽 �쑀�떅�뱾�뿉寃� 怨듦꺽�쓣 吏��떆�빀�땲�떎 
+	void commandMyCombatUnitToAttack(){
+
+		// 理쒖쥌 ��寃잛� �쟻援곗쓽 Main BaseLocation
+		BaseLocation targetEnemyBaseLocation = enemyMainBaseLocation;
+		Position targetPosition = null;
+		
+		if (targetEnemyBaseLocation != null) 
+		{
+			// �뀒�� 醫낆”�쓽 寃쎌슦, 踰숈빱 �븞�뿉 �엳�뒗 �쑀�떅�� 諛뽰쑝濡� 鍮쇰궦�떎
+			if (myRace == Race.Terran) {
+				for(Unit bunker : myDefenseBuildingType1List) {
+					if (bunker.getLoadedUnits().size() > 0) {
+						boolean isThereSomeEnemyUnit = false;
+						for(Unit someUnit : MyBotModule.Broodwar.getUnitsInRadius(bunker.getPosition(), 6 * Config.TILE_SIZE)) {
+							if (someUnit.getPlayer() == enemyPlayer) {
+								isThereSomeEnemyUnit = true;
+								break;
+							}
+						}
+						if (isThereSomeEnemyUnit == false) {
+							bunker.unloadAll();
+						}
+					}
+				}
+			}
+
+			// targetPosition �쓣 �꽕�젙�븳�떎
+			targetPosition = targetEnemyBaseLocation.getPosition();
+			
+			// 紐⑤뱺 �븘援� 怨듦꺽�쑀�떅�뱾濡� �븯�뿬湲� targetPosition �쓣 �뼢�빐 怨듦꺽�븯寃� �븳�떎
+			for (Unit unit : myAllCombatUnitList) {
+				boolean hasCommanded = false;
+
+				if (unit.getType() == UnitType.Terran_Siege_Tank_Tank_Mode || unit.getType() == UnitType.Terran_Siege_Tank_Siege_Mode) {
+					hasCommanded = controlSiegeTankUnitType(unit);					
+				}
+				if (unit.getType() == UnitType.Zerg_Lurker) {
+					hasCommanded = controlLurkerUnitType(unit);					
+				}
+				if (unit.getType() == mySpecialUnitType1) {					
+					hasCommanded = controlSpecialUnitType1(unit);
+				}
+				if (unit.getType() == mySpecialUnitType2) {					
+					hasCommanded = controlSpecialUnitType2(unit);
+				}
+				
+				// �뵲濡� 紐낅졊 �궡由� �쟻�씠 �뾾�쑝硫�, targetPosition �쓣 �뼢�빐 怨듦꺽 �씠�룞�떆�궢�땲�떎
+				if (hasCommanded == false) {
+
+					if (unit.isIdle()) {
+						
+						if (unit.canAttack() ) {
+							commandUtil.attackMove(unit, targetPosition);
+							hasCommanded = true;
+						}
+						else {
+							// canAttack 湲곕뒫�씠 �뾾�뒗 �쑀�떅���엯 以� 硫붾뵓�� 留덈┛ �쑀�떅�뿉 ���빐 Heal �븯�윭 媛�寃� �븯怨�, 留덈┛ �쑀�떅�씠 �뾾�쑝硫� �븘援� 吏��뿭�쑝濡� �룎�븘�삤寃� �빀�땲�떎
+							if (unit.getType() == UnitType.Terran_Medic) {
+								Position targetMyUnitPosition = null;
+								Random random = new Random();
+								for(Unit myUnit : myCombatUnitType1List) {
+									if (myUnit == null || myUnit.exists() == false || myUnit.getHitPoints() < 0) {continue;}
+									
+									if (myUnit.getHitPoints() < myUnit.getInitialHitPoints()
+											|| random.nextInt() % 2 == 0) 
+									{
+										targetMyUnitPosition = myUnit.getPosition();
+										break;
+									}
+								}							
+								if (targetMyUnitPosition != null) {
+									unit.useTech(TechType.Healing, targetMyUnitPosition);
+									hasCommanded = true;
+								}
+								else {
+									unit.useTech(TechType.Healing, mySecondChokePoint.getCenter());
+									hasCommanded = true;
+								}
+							}
+							// canAttack 湲곕뒫�씠 �뾾�뒗 �쑀�떅���엯 以� �윭而ㅻ뒗 �씪諛� 怨듦꺽�쑀�떅泥섎읆 targetPosition �쓣 �뼢�빐 �씠�룞�떆�궢�땲�떎
+							else if (unit.getType() == UnitType.Zerg_Lurker){
+								commandUtil.move(unit, targetPosition);
+								hasCommanded = true;
+							}
+							// canAttack 湲곕뒫�씠 �뾾�뒗 �떎瑜� �쑀�떅���엯 (�븯�씠�뀥�뵆�윭, �샃��踰�, �궗�씠�뼵�뒪踰좎뒳, �삤踰꾨줈�뱶) �뒗
+							// �뵲濡� 紐낅졊�쓣 �궡由� �쟻�씠 �뾾�쑝硫� �떎瑜� 怨듦꺽�쑀�떅�뱾怨� �룞�씪�븯寃� �씠�룞�븯�룄濡� �릺�뼱�엳�뒿�땲�떎.
+							else {
+								commandUtil.move(unit, targetPosition);
+								hasCommanded = true;
+							}
+						}
+					}
+				}
+			} 
+		}	
+	}
+
+	/// �쟻援곗쓣 Eliminate �떆�궎�룄濡� �븘援� 怨듦꺽 �쑀�떅�뱾�뿉寃� 吏��떆�빀�땲�떎
+	void commandMyCombatUnitToEliminate(){
+		
+		if (enemyPlayer == null || enemyRace == Race.Unknown) 
+		{
+			return;
+		}
+		
+		Random random = new Random();
+		int mapHeight = MyBotModule.Broodwar.mapHeight();	// 128
+		int mapWidth = MyBotModule.Broodwar.mapWidth();		// 128
+		
+		// �븘援� 怨듦꺽 �쑀�떅�뱾濡� �븯�뿬湲� �쟻援곗쓽 �궓�� 嫄대Ъ�쓣 �븣怨� �엳�쑝硫� 洹멸쾬�쓣 怨듦꺽�븯寃� �븯怨�, 洹몃젃吏� �븡�쑝硫� 留� �쟾泥대�� �옖�뜡�븯寃� �룎�븘�떎�땲�룄濡� �빀�땲�떎
+		Unit targetEnemyBuilding = null;
+				
+		for(Unit enemyUnit : enemyPlayer.getUnits()) {
+			if (enemyUnit == null || enemyUnit.exists() == false || enemyUnit.getHitPoints() < 0 ) continue;
+			if (enemyUnit.getType().isBuilding()) {
+				targetEnemyBuilding = enemyUnit;
+				break;
+			}
+		}
+		
+		for(Unit unit : myAllCombatUnitList) {
+			
+			boolean hasCommanded = false;
+			
+			if (unit.getType() == UnitType.Terran_Siege_Tank_Tank_Mode || unit.getType() == UnitType.Terran_Siege_Tank_Siege_Mode) {
+				hasCommanded = controlSiegeTankUnitType(unit);					
+			}
+			if (unit.getType() == UnitType.Zerg_Lurker) {
+				hasCommanded = controlLurkerUnitType(unit);					
+			}
+			if (unit.getType() == mySpecialUnitType1) {					
+				hasCommanded = controlSpecialUnitType1(unit);
+			}
+			if (unit.getType() == mySpecialUnitType2) {					
+				hasCommanded = controlSpecialUnitType2(unit);
+			}
+			
+			// �뵲濡� 紐낅졊 �궡由� �쟻�씠 �뾾�쑝硫�, �쟻援곗쓽 �궓�� 嫄대Ъ �샊�� �옖�뜡 �쐞移섎줈 �씠�룞�떆�궓�떎
+			if (hasCommanded == false) {
+
+				if (unit.isIdle()) {
+
+					Position targetPosition = null;
+					if (targetEnemyBuilding != null) {
+						targetPosition = targetEnemyBuilding.getPosition();
+					}
+					else {
+						targetPosition = new Position(random.nextInt(mapWidth * Config.TILE_SIZE), random.nextInt(mapHeight * Config.TILE_SIZE));
+					}
+
+					if (unit.canAttack()) {
+						commandUtil.attackMove(unit, targetPosition);
+						hasCommanded = true;
+					}
+					else {
+						// canAttack 湲곕뒫�씠 �뾾�뒗 �쑀�떅���엯 以� 硫붾뵓�� 留덈┛ �쑀�떅�뿉 ���빐 Heal �븯�윭 媛�寃� �븯怨�, 留덈┛ �쑀�떅�씠 �뾾�쑝硫� �븘援� 吏��뿭�쑝濡� �룎�븘�삤寃� �빀�땲�떎
+						if (unit.getType() == UnitType.Terran_Medic) {
+							Position targetMyUnitPosition = null;
+							for(Unit myUnit : myCombatUnitType1List) {
+								if (myUnit == null || myUnit.exists() == false || myUnit.getHitPoints() < 0) {continue;}
+								
+								if (myUnit.getHitPoints() < myUnit.getInitialHitPoints()
+										|| random.nextInt() % 2 == 0) 
+								{
+									targetMyUnitPosition = myUnit.getPosition();
+									break;
+								}
+							}							
+							if (targetMyUnitPosition != null) {
+								unit.useTech(TechType.Healing, targetMyUnitPosition);
+								hasCommanded = true;
+							}
+							else {
+								unit.useTech(TechType.Healing, mySecondChokePoint.getCenter());
+								hasCommanded = true;
+							}
+						}
+						// canAttack 湲곕뒫�씠 �뾾�뒗 �쑀�떅���엯 以� �윭而ㅻ뒗 �씪諛� 怨듦꺽�쑀�떅泥섎읆 targetPosition �쓣 �뼢�빐 �씠�룞�떆�궢�땲�떎
+						else if (unit.getType() == UnitType.Zerg_Lurker){
+							commandUtil.move(unit, targetPosition);
+							hasCommanded = true;
+						}
+						// canAttack 湲곕뒫�씠 �뾾�뒗 �떎瑜� �쑀�떅���엯 (�븯�씠�뀥�뵆�윭, �샃��踰�, �궗�씠�뼵�뒪踰좎뒳, �삤踰꾨줈�뱶) �뒗
+						// �뵲濡� 紐낅졊�쓣 �궡由� �쟻�씠 �뾾�쑝硫� �떎瑜� 怨듦꺽�쑀�떅�뱾怨� �룞�씪�븯寃� �씠�룞�븯�룄濡� �릺�뼱�엳�뒿�땲�떎.
+						else {
+							commandUtil.move(unit, targetPosition);
+							hasCommanded = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/// �떆利덊꺊�겕 �쑀�떅�뿉 ���빐 而⑦듃濡� 紐낅졊�쓣 �궡由쎈땲�떎
+	boolean controlSiegeTankUnitType(Unit unit){
+		
+		boolean hasCommanded = false;
+
+		// defenseMode �씪 寃쎌슦
+		if (combatState == CombatState.defenseMode) {
+			
+			// �븘援� 諛⑹뼱 嫄대Ъ�씠 �꽭�썙�졇�엳�뒗 �쐞移� 二쇱쐞�뿉 �떆利덈え�뱶 �떆耳쒕넃�뒗�떎
+			Position myDefenseBuildingPosition = null;
+			switch (seedPositionStrategyOfMyDefenseBuildingType) {
+				case MainBaseLocation: myDefenseBuildingPosition = myMainBaseLocation.getPosition(); break;
+				case FirstChokePoint: myDefenseBuildingPosition = myFirstChokePoint.getCenter(); break;
+				case FirstExpansionLocation: myDefenseBuildingPosition = myFirstExpansionLocation.getPosition(); break;
+				case SecondChokePoint: myDefenseBuildingPosition = mySecondChokePoint.getCenter(); break;
+				default: myDefenseBuildingPosition = myMainBaseLocation.getPosition(); break;
+			}
+
+			if (myDefenseBuildingPosition != null) {		
+				if (unit.isSieged() == false) {			
+					if (unit.getDistance(myDefenseBuildingPosition) < 5 * Config.TILE_SIZE) {
+						unit.siege();
+						hasCommanded = true;
+					}
+				}
+			}
+		}
+		else {
+			// �쟻�씠 洹쇱쿂�뿉 �엳�쑝硫� �떆利덈え�뱶 �떆�궎怨�, �뾾�쑝硫� �떆利덈え�뱶瑜� �빐�젣�븳�떎
+			Position nearEnemyUnitPosition = null;			
+			double tempDistance = 0;
+			for(Unit enemyUnit : MyBotModule.Broodwar.enemy().getUnits()) {
+				
+				if (enemyUnit.isFlying() || enemyUnit.exists() == false) continue;
+
+				tempDistance = unit.getDistance(enemyUnit.getPosition());
+				if (tempDistance < 12 * Config.TILE_SIZE) {
+					nearEnemyUnitPosition = enemyUnit.getPosition();
+				}
+			}
+				
+			if (unit.isSieged() == false) {			
+				if (nearEnemyUnitPosition != null) {
+					unit.siege();
+					hasCommanded = true;
+				}
+			}
+			else {						
+				if (nearEnemyUnitPosition == null) {
+					unit.unsiege();
+					hasCommanded = true;
+				}
+			}
+		}
+		
+		return hasCommanded;
+	}
+
+	/// �윭而� �쑀�떅�뿉 ���빐 而⑦듃濡� 紐낅졊�쓣 �궡由쎈땲�떎
+	boolean controlLurkerUnitType(Unit unit){
+		
+		boolean hasCommanded = false;
+		
+		// defenseMode �씪 寃쎌슦
+		if (combatState == CombatState.defenseMode) {
+			
+			// �븘援� 諛⑹뼱 嫄대Ъ�씠 �꽭�썙�졇�엳�뒗 �쐞移� 二쇱쐞�뿉 踰꾨줈�슦�떆耳쒕넃�뒗�떎
+			Position myDefenseBuildingPosition = null;
+			switch (seedPositionStrategyOfMyDefenseBuildingType) {
+				case MainBaseLocation: myDefenseBuildingPosition = myMainBaseLocation.getPosition(); break;
+				case FirstChokePoint: myDefenseBuildingPosition = myFirstChokePoint.getCenter(); break;
+				case FirstExpansionLocation: myDefenseBuildingPosition = myFirstExpansionLocation.getPosition(); break;
+				case SecondChokePoint: myDefenseBuildingPosition = mySecondChokePoint.getCenter(); break;
+				default: myDefenseBuildingPosition = myMainBaseLocation.getPosition(); break;
+			}
+
+			if (myDefenseBuildingPosition != null) {
+				if (unit.isBurrowed() == false) {			
+					if (unit.getDistance(myDefenseBuildingPosition) < 5 * Config.TILE_SIZE) {
+						unit.burrow();
+						hasCommanded = true;
+					}
+				}
+			}
+		}
+		// defenseMode 媛� �븘�땺 寃쎌슦
+		else {
+			
+			// 洹쇱쿂�뿉 �쟻 �쑀�떅�씠 �엳�쑝硫� 踰꾨줈�슦 �떆�궎怨�, �뾾�쑝硫� �뼵踰꾨줈�슦 �떆�궓�떎
+			Position nearEnemyUnitPosition = null;
+			double tempDistance = 0;
+			for(Unit enemyUnit : MyBotModule.Broodwar.enemy().getUnits()) {
+				
+				if (enemyUnit.isFlying()) continue;
+
+				tempDistance = unit.getDistance(enemyUnit.getPosition());
+				if (tempDistance < 6 * Config.TILE_SIZE) {
+					nearEnemyUnitPosition = enemyUnit.getPosition();
+				}
+			}
+			
+			if (unit.isBurrowed() == false) {				
+				
+				if (nearEnemyUnitPosition != null) {
+					unit.burrow();
+					hasCommanded = true;
+				}
+			}
+			else {
+				if (nearEnemyUnitPosition == null) {
+					unit.unburrow();
+					hasCommanded = true;
+				}
+			}			
+		}
+
+		return hasCommanded;
+	}
+
+	/// 泥ル쾲吏� �듅�닔 �쑀�떅 ���엯�쓽 �쑀�떅�뿉 ���빐 而⑦듃濡� 紐낅졊�쓣 �엯�젰�빀�땲�떎
+	boolean controlSpecialUnitType1(Unit unit) {
+
+		///////////////////////////////////////////////////////////////////
+		///////////////////////// �븘�옒�쓽 肄붾뱶瑜� �닔�젙�빐蹂댁꽭�슂 ///////////////////////
+		//
+		// TODO 1. �븘援� �샃��踰�/�궗�씠�뼵�뒪踰좎뒳/�삤踰꾨줈�뱶瑜� 怨듦꺽 �쑀�떅�뱾怨� �븿猿� �씠�룞�븯寃� �븯�뒗 濡쒖쭅  (�삁�긽 媛쒕컻�떆媛� 10遺�)
+		//
+		// 紐⑺몴 : 泥ル쾲吏� �듅�닔�쑀�떅 ���엯�� �쟻援� �닾紐� �쑀�떅 �깘吏� �뒫�젰�씠 �엳怨� �떆�빞媛� �꼻�� �샃��踰�/�궗�씠�뼵�뒪踰좎뒳/�삤踰꾨줈�뱶 �엯�땲�떎. 
+		// 
+		//      �쁽�옱�뒗 �븘援� �샃��踰�/�궗�씠�뼵�뒪踰좎뒳/�삤踰꾨줈�뱶�뿉寃� �뵲濡� 而⑦듃濡� 紐낅졊�쓣 �엯�젰�븯吏� �븡�쑝硫� 
+		//      �떎瑜� 怨듦꺽�쑀�떅�뱾怨� �룞�씪�븯寃� �쟻援� 蹂몄쭊�쓣 �뼢�빐 �씠�룞�븯�룄濡� �릺�뼱�엳�뒿�땲�떎.  
+		//
+		//      洹몃윭�굹 �씠�젃寃뚰븯硫� �쟻援� �쑀�떅�뱾�씠 �엳�뒗�뜲�룄 臾댁떆�븯怨� 怨꾩냽 �씠�룞�븯�떎媛� �궗留앺븯寃� �맗�땲�떎
+		//
+		//      �븘援� 怨듦꺽 �쑀�떅�뱾�쓽 紐⑸줉 myCombatUnitType1List, myCombatUnitType2List, myCombatUnitType3List  
+		//		�쓣 �궗�슜�빐�꽌, �떎瑜� �븘援� 怨듦꺽 �쑀�떅�뱾怨� �븿猿� �떎�땲�룄濡� �빐蹂댁꽭�슂
+		// 
+		//      return false = �쑀�떅�뿉寃� �뵲濡� 而⑦듃濡� 紐낅졊�쓣 �엯�젰�븯吏� �븡�쓬  -> �떎瑜� 怨듦꺽�쑀�떅怨� �룞�씪�븯寃� �씠�룞�븯�룄濡� �빀�땲�떎 
+		//      return true = �쑀�떅�뿉寃� �뵲濡� 而⑦듃濡� 紐낅졊�쓣 �엯�젰�뻽�쓬
+		// 
+		// Hint : myCombatUnitType1List �뿉�꽌 �옖�뜡�븯寃� �븳 �쑀�떅�쓣 �꽑�깮�빐�꽌 洹� �쑀�떅�쓣 �뵲�씪�떎�땲寃� �븯硫� �뼱�뼥源뚯슂?  
+		//
+		///////////////////////////////////////////////////////////////////
+
+		boolean hasCommanded = false;		
+		if (unit.getType() == UnitType.Protoss_Observer) {
+			
+			Position targetPosition = null;
+			
+			// targetPosition �쓣 �쟻�젅�엳 �젙�빐�꽌 �씠�룞�떆耳쒕낫�꽭�슂
+			
+		}
+		else if (unit.getType() == UnitType.Terran_Science_Vessel) {
+			
+			Position targetPosition = null;
+			
+			// targetPosition �쓣 �쟻�젅�엳 �젙�빐�꽌 �씠�룞�떆耳쒕낫�꽭�슂
+			
+			if (unit.getEnergy() >= TechType.Defensive_Matrix.energyCost()) {
+
+				Unit targetMyUnit = null;
+				
+				// targetMyUnit �쓣 �쟻�젅�엳 �젙�빐蹂댁꽭�슂
+				
+				if (targetMyUnit != null) {
+					unit.useTech(TechType.Defensive_Matrix, targetMyUnit);
+					hasCommanded = true;
+				}		
+			}
+			
+			if (unit.getEnergy() >= TechType.Irradiate.energyCost() && myPlayer.hasResearched(TechType.Irradiate)) {
+				
+				Unit targetEnemyUnit = null;
+				
+				// targetEnemyUnit �쓣 �쟻�젅�엳 �젙�빐蹂댁꽭�슂
+				
+				if (targetEnemyUnit != null) {
+					unit.useTech(TechType.Irradiate, targetEnemyUnit);
+					hasCommanded = true;
+				}
+			}	
+			
+		}		
+		else if (unit.getType() == UnitType.Zerg_Overlord) {			
+
+			Position targetPosition = null;
+			
+			// targetPosition �쓣 �쟻�젅�엳 �젙�빐�꽌 �씠�룞�떆耳쒕낫�꽭�슂
+		}
+		
+		return hasCommanded;
+	}
+	
+	/// �몢踰덉㎏ �듅�닔 �쑀�떅 ���엯�쓽 �쑀�떅�뿉 ���빐 而⑦듃濡� 紐낅졊�쓣 �궡由쎈땲�떎
+	boolean controlSpecialUnitType2(Unit unit) {
+
+		///////////////////////////////////////////////////////////////////
+		///////////////////////// �븘�옒�쓽 肄붾뱶瑜� �닔�젙�빐蹂댁꽭�슂 ///////////////////////
+		//
+		// TODO 2. �븘援� �븯�씠�뀥�뵆�윭/諛고��겕猷⑥�/�뵒�뙆�씪�윭媛� �듅�닔 湲곗닠�쓣 �궗�슜�븯寃� �븯�뒗 濡쒖쭅       (�삁�긽 媛쒕컻�떆媛� 20遺�)
+		//
+		// 紐⑺몴 : �몢踰덉㎏ �듅�닔�쑀�떅 ���엯�� �듅�닔 湲곗닠�쓣 媛뽮퀬�엳�뒗 �븯�씠�뀥�뵆�윭/諛고��겕猷⑥�/�뵒�뙆�씪�윭 �엯�땲�떎. 
+		//
+		//      �쁽�옱�뒗 �듅�닔湲곗닠 �궗�슜 ���긽�쓣 �젙�븯�뒗 濡쒖쭅�씠 援ы쁽 �븞�릺�뼱�엳�뒿�땲�떎.
+		//
+		//      �쟻援� �쑀�떅�뱾�쓽 紐⑸줉 MyBotModule.Broodwar.enemy().getUnits() �쓣 �궗�슜�븯�뿬
+		//      �듅�닔 湲곗닠 �궗�슜 ���긽�쓣 �쟻�젅�엳 �젙�븯�룄濡� �빐蹂댁꽭�슂
+		// 
+		//      return false = �쑀�떅�뿉寃� �뵲濡� 而⑦듃濡� 紐낅졊�쓣 �엯�젰�븯吏� �븡�쓬  -> �떎瑜� 怨듦꺽�쑀�떅怨� �룞�씪�븯寃� �씠�룞�븯�룄濡� �빀�땲�떎
+		//      return true = �쑀�떅�뿉寃� �뵲濡� 而⑦듃濡� 紐낅졊�쓣 �엯�젰�뻽�쓬
+		// 
+		// 異붽� : �뀒�� 醫낆” 泥ル쾲吏� �듅�닔�쑀�떅 ���엯 �궗�씠�뼵�뒪踰좎뒳�뿉 ���빐�꽌�룄 �듅�닔 湲곗닠�쓣 �궗�슜�븯寃� �븯�젮硫�
+		//		controlSpecialUnitType1 �븿�닔瑜� �닔�젙�븯�떆硫� �맗�땲�떎
+		// 
+		///////////////////////////////////////////////////////////////////
+		
+		boolean hasCommanded = false;
+		
+		// �봽濡쒗넗�뒪 醫낆” �븯�씠�뀥�뵆�윭�쓽 寃쎌슦 
+		if (unit.getType() == UnitType.Protoss_High_Templar) {
+			
+			if (unit.getEnergy() >= TechType.Psionic_Storm.energyCost() && myPlayer.hasResearched(TechType.Psionic_Storm)) {
+				
+				Position targetPosition = null;
+				
+				// targetPosition �쓣 �쟻�젅�엳 �젙�빐蹂댁꽭�슂
+				
+				if (targetPosition != null) {
+					unit.useTech(TechType.Psionic_Storm, targetPosition);
+					hasCommanded = true;
+				}
+			}			
+		}
+		else if (unit.getType() == UnitType.Terran_Battlecruiser) {
+			
+			if (unit.getEnergy() >= TechType.Yamato_Gun.energyCost() && myPlayer.hasResearched(TechType.Yamato_Gun)) {
+				
+				Unit targetEnemyUnit = null;
+				
+				// targetEnemyUnit �쓣 �쟻�젅�엳 �젙�빐蹂댁꽭�슂
+				
+				if (targetEnemyUnit != null) {
+					unit.useTech(TechType.Yamato_Gun, targetEnemyUnit);
+					hasCommanded = true;
+				}
+			}	
+		}
+		else if (unit.getType() == UnitType.Zerg_Defiler) {
+
+			if (unit.getEnergy() < 200 && myPlayer.hasResearched(TechType.Consume)) {
+				
+				Unit targetMyUnit = null;
+				
+				// 媛��옣 媛�源뚯슫 ��湲�留곸쓣 而⑥뒛 �븳�떎
+				double minDistance = 1000000000;
+				double tempDistance = 0;
+				for(Unit zerglingUnit : myCombatUnitType1List) {
+					tempDistance = unit.getDistance(zerglingUnit.getPosition());
+					if (minDistance > tempDistance) {
+						minDistance = tempDistance;
+						targetMyUnit = zerglingUnit;
+					}
+				}
+				
+				if (targetMyUnit != null) {
+					unit.useTech(TechType.Consume, targetMyUnit);
+					hasCommanded = true;
+				}
+			}	
+
+			if (unit.getEnergy() >= TechType.Plague.energyCost() && myPlayer.hasResearched(TechType.Plague)) {
+
+				Unit targetEnemyUnit = null;
+				
+				// targetEnemyUnit �쓣 �쟻�젅�엳 �젙�빐蹂댁꽭�슂
+				
+				if (targetEnemyUnit != null) {
+					unit.useTech(TechType.Plague, targetEnemyUnit);
+					hasCommanded = true;
+				}				
+			}
+			else if (unit.getEnergy() >= TechType.Dark_Swarm.energyCost()) {
+				
+				Position targetPosition = null;
+
+				// targetPosition �쓣 �쟻�젅�엳 �젙�빐蹂댁꽭�슂
+				
+				if (targetPosition != null) {
+					unit.useTech(TechType.Dark_Swarm, targetPosition);
+					hasCommanded = true;
+				}
+			}
+		}
+
+		return hasCommanded;
+	}
+	
+	
+	/// StrategyManager �쓽 �닔�뻾�긽�솴�쓣 �몴�떆�빀�땲�떎
+	private void drawStrategyManagerStatus() {
+		
+		int y = 250;
+		
+		// �븘援� 怨듦꺽�쑀�떅 �닽�옄 諛� �쟻援� 怨듦꺽�쑀�떅 �닽�옄
+		MyBotModule.Broodwar.drawTextScreen(200, y, "My " + myCombatUnitType1.toString());
+		MyBotModule.Broodwar.drawTextScreen(350, y, "alive " + myCombatUnitType1List.size());
+		MyBotModule.Broodwar.drawTextScreen(400, y, "killed " + myKilledCombatUnitCount1);
+		y += 10;
+		MyBotModule.Broodwar.drawTextScreen(200, y, "My " + myCombatUnitType2.toString());
+		MyBotModule.Broodwar.drawTextScreen(350, y, "alive " + myCombatUnitType2List.size());
+		MyBotModule.Broodwar.drawTextScreen(400, y, "killed " + myKilledCombatUnitCount2);
+		y += 10;
+		MyBotModule.Broodwar.drawTextScreen(200, y, "My " + myCombatUnitType3.toString());
+		MyBotModule.Broodwar.drawTextScreen(350, y, "alive " + myCombatUnitType3List.size());
+		MyBotModule.Broodwar.drawTextScreen(400, y, "killed " + myKilledCombatUnitCount3);
+		y += 10;
+		MyBotModule.Broodwar.drawTextScreen(200, y, "My " + mySpecialUnitType1.toString());
+		MyBotModule.Broodwar.drawTextScreen(350, y, "alive " + mySpecialUnitType1List.size());
+		MyBotModule.Broodwar.drawTextScreen(400, y, "killed " + myKilledSpecialUnitCount1);
+		y += 10;
+		MyBotModule.Broodwar.drawTextScreen(200, y, "My " + mySpecialUnitType2.toString());
+		MyBotModule.Broodwar.drawTextScreen(350, y, "alive " + mySpecialUnitType2List.size());
+		MyBotModule.Broodwar.drawTextScreen(400, y, "killed " + myKilledSpecialUnitCount2);
+		y += 20;
+
+		MyBotModule.Broodwar.drawTextScreen(200, y, "Enemy CombatUnit");
+		MyBotModule.Broodwar.drawTextScreen(350, y, "alive " + numberOfCompletedEnemyCombatUnit);
+		MyBotModule.Broodwar.drawTextScreen(400, y, "killed " + enemyKilledCombatUnitCount);
+		y += 10;
+		MyBotModule.Broodwar.drawTextScreen(200, y, "Enemy WorkerUnit");
+		MyBotModule.Broodwar.drawTextScreen(350, y, "alive " + numberOfCompletedEnemyWorkerUnit);
+		MyBotModule.Broodwar.drawTextScreen(400, y, "killed " + enemyKilledWorkerUnitCount);
+		y += 20;
+
+		// setInitialBuildOrder �뿉�꽌 �엯�젰�븳 鍮뚮뱶�삤�뜑媛� �떎 �걹�굹�꽌 鍮뚮뱶�삤�뜑�걧媛� empty �릺�뿀�뒗吏� �뿬遺�
+		MyBotModule.Broodwar.drawTextScreen(200, y, "isInitialBuildOrderFinished " + isInitialBuildOrderFinished);
+		y += 10;
+		// �쟾�닾 �긽�솴
+		MyBotModule.Broodwar.drawTextScreen(200, y, "combatState " + combatState.ordinal());
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	private static StrategyManager instance = new StrategyManager();
+
+	/// static singleton 媛앹껜瑜� 由ы꽩�빀�땲�떎
+	public static StrategyManager Instance() {
+		return instance;
+	}
+
+	private CommandUtil commandUtil = new CommandUtil();
+		
+	// BasicBot 1.1 Patch Start ////////////////////////////////////////////////
+	// 寃쎄린 寃곌낵 �뙆�씪 Save / Load 諛� 濡쒓렇�뙆�씪 Save �삁�젣 異붽�瑜� �쐞�븳 蹂��닔 諛� 硫붿냼�뱶 �꽑�뼵
+
+	/// �븳 寃뚯엫�뿉 ���븳 湲곕줉�쓣 ���옣�븯�뒗 �옄猷뚭뎄議�
+	private class GameRecord {
+		String mapName;
+		String enemyName;
+		String enemyRace;
+		String enemyRealRace;
+		String myName;
+		String myRace;
+		int gameFrameCount = 0;
+		int myWinCount = 0;
+		int myLoseCount = 0;
+	}
+
+	/// 怨쇨굅 �쟾泥� 寃뚯엫�뱾�쓽 湲곕줉�쓣 ���옣�븯�뒗 �옄猷뚭뎄議�
+	ArrayList<GameRecord> gameRecordList = new ArrayList<GameRecord>();
+
+	// BasicBot 1.1 Patch End //////////////////////////////////////////////////
+
+
+	///  寃쎄린媛� 醫낅즺�맆 �븣 �씪�쉶�쟻�쑝濡� �쟾�왂 寃곌낵 �젙由� 愿��젴 濡쒖쭅�쓣 �떎�뻾�빀�땲�떎
+	public void onEnd(boolean isWinner) {
+		
+		// BasicBot 1.1 Patch Start ////////////////////////////////////////////////
+		// 寃쎄린 寃곌낵 �뙆�씪 Save / Load 諛� 濡쒓렇�뙆�씪 Save �삁�젣 異붽�
+		
+		// 怨쇨굅 寃뚯엫 湲곕줉 + �씠踰� 寃뚯엫 湲곕줉�쓣 ���옣�빀�땲�떎
+		saveGameRecordList(isWinner);
+		
+		// BasicBot 1.1 Patch End //////////////////////////////////////////////////		
+	}
+
+	/// 蹂��닔 媛믪쓣 �뾽�뜲�씠�듃 �빀�땲�떎 
+	void updateVariables(){
+
+		enemyRace = InformationManager.Instance().enemyRace;
+		
+		if (BuildManager.Instance().buildQueue.isEmpty()) {
+			isInitialBuildOrderFinished = true;
+		}
+
+		// �쟻援곗쓽 怨듦꺽�쑀�떅 �닽�옄
+		numberOfCompletedEnemyCombatUnit = 0;
+		numberOfCompletedEnemyWorkerUnit = 0;
+		for(Map.Entry<Integer,UnitInfo> unitInfoEntry : InformationManager.Instance().getUnitAndUnitInfoMap(enemyPlayer).entrySet()) {
+			UnitInfo enemyUnitInfo = unitInfoEntry.getValue(); 
+			if (enemyUnitInfo.getType().isWorker() == false && enemyUnitInfo.getType().canAttack() && enemyUnitInfo.getLastHealth() > 0) {
+				numberOfCompletedEnemyCombatUnit ++; 
+			}
+			if (enemyUnitInfo.getType().isWorker() == true ) {
+				numberOfCompletedEnemyWorkerUnit ++; 
+			}
+		}
+		
+		// �븘援� / �쟻援곗쓽 蹂몄쭊, 泥ル쾲吏� 湲몃ぉ, �몢踰덉㎏ 湲몃ぉ
+		myMainBaseLocation = InformationManager.Instance().getMainBaseLocation(myPlayer); 
+		myFirstExpansionLocation = InformationManager.Instance().getFirstExpansionLocation(myPlayer); 
+		myFirstChokePoint = InformationManager.Instance().getFirstChokePoint(myPlayer);
+		mySecondChokePoint = InformationManager.Instance().getSecondChokePoint(myPlayer);
+		enemyMainBaseLocation = InformationManager.Instance().getMainBaseLocation(enemyPlayer);
+		enemyFirstExpansionLocation = InformationManager.Instance().getFirstExpansionLocation(enemyPlayer); 
+		enemyFirstChokePoint = InformationManager.Instance().getFirstChokePoint(enemyPlayer);
+		enemySecondChokePoint = InformationManager.Instance().getSecondChokePoint(enemyPlayer);
+		
+		// �븘援� 諛⑹뼱 嫄대Ъ 紐⑸줉, 怨듦꺽 �쑀�떅 紐⑸줉
+		myDefenseBuildingType1List.clear();
+		myDefenseBuildingType2List.clear();
+		myAllCombatUnitList.clear();
+		myCombatUnitType1List.clear();
+		myCombatUnitType2List.clear();
+		myCombatUnitType3List.clear();
+		mySpecialUnitType1List.clear();
+		mySpecialUnitType2List.clear();
+		for(Unit unit : myPlayer.getUnits()) {		
+			
+			if (unit == null || unit.exists() == false || unit.getHitPoints() <= 0) continue;
+			
+			if (unit.getType() == myCombatUnitType1) { 
+				myCombatUnitType1List.add(unit);
+				myAllCombatUnitList.add(unit);
+			}
+			else if (unit.getType() == myCombatUnitType2) { 
+				myCombatUnitType2List.add(unit); 
+				myAllCombatUnitList.add(unit);
+			}
+			else if (unit.getType() == myCombatUnitType3 || unit.getType() == UnitType.Terran_Siege_Tank_Siege_Mode) { 
+				myCombatUnitType3List.add(unit); 
+				myAllCombatUnitList.add(unit);
+			}
+			else if (unit.getType() == mySpecialUnitType1) {
+				// maxNumberOfSpecialUnitType1 �닽�옄源뚯�留� �듅�닔�쑀�떅 遺����뿉 �룷�븿�떆�궓�떎 (��洹� 醫낆”�쓽 寃쎌슦 �삤踰꾨줈�뱶媛� �쟾遺� �쟾�닾李몄뿬�뻽�떎媛� �쐞�뿕�빐吏� �닔 �엳�쑝誘�濡�)
+				if (mySpecialUnitType1List.size() < maxNumberOfSpecialUnitType1) {
+					mySpecialUnitType1List.add(unit); 
+					myAllCombatUnitList.add(unit);
+				}
+			}
+			else if (unit.getType() == mySpecialUnitType2) { 
+				// maxNumberOfSpecialUnitType2 �닽�옄源뚯�留� �듅�닔�쑀�떅 遺����뿉 �룷�븿�떆�궓�떎
+				if (mySpecialUnitType2List.size() < maxNumberOfSpecialUnitType2) {
+					mySpecialUnitType2List.add(unit); 
+					myAllCombatUnitList.add(unit);
+				}
+			}
+			else if (unit.getType() == myDefenseBuildingType1) { 
+				myDefenseBuildingType1List.add(unit); 
+			}
+			else if (unit.getType() == myDefenseBuildingType2) { 
+				myDefenseBuildingType2List.add(unit); 
+			}			
+		}
+	}
+
+	/// �븘援� / �쟻援� 怨듦꺽 �쑀�떅 �궗留� �쑀�떅 �닽�옄 �늻�쟻媛믪쓣 �뾽�뜲�씠�듃 �빀�땲�떎
+	public void onUnitDestroy(Unit unit) {
+		if (unit.getType().isNeutral()) {
+			return;
+		}
+		
+		if (unit.getPlayer() == myPlayer) {
+			if (unit.getType() == myCombatUnitType1) {
+				myKilledCombatUnitCount1 ++;				
+			}
+			else if (unit.getType() == myCombatUnitType2) {
+				myKilledCombatUnitCount2 ++;		
+			} 
+			else if (unit.getType() == myCombatUnitType3 ) {
+				myKilledCombatUnitCount3 ++;		
+			} 
+			else if (myCombatUnitType3 == UnitType.Terran_Siege_Tank_Tank_Mode && unit.getType() == UnitType.Terran_Siege_Tank_Siege_Mode) {
+				myKilledCombatUnitCount3 ++;		
+			}
+			else if (unit.getType() == mySpecialUnitType1 ) {
+				myKilledSpecialUnitCount1 ++;		
+			} 
+			else if (unit.getType() == mySpecialUnitType2 ) {
+				myKilledSpecialUnitCount2 ++;		
+			} 
+		}
+		else if (unit.getPlayer() == enemyPlayer) {
+			/// �쟻援� 怨듦꺽 �쑀�떅���엯�쓽 �궗留� �쑀�떅 �닽�옄 �늻�쟻媛�
+			if (unit.getType().isWorker() == false && unit.getType().isBuilding() == false) {
+				enemyKilledCombatUnitCount ++;
+			}
+			/// �쟻援� �씪袁� �쑀�떅���엯�쓽 �궗留� �쑀�떅 �닽�옄 �늻�쟻媛�
+			if (unit.getType().isWorker() == true) {
+				enemyKilledWorkerUnitCount ++;
+			}
+		} 
+	}
+	
+	/// �씪袁쇱쓣 怨꾩냽 異붽� �깮�궛�빀�땲�떎
+	public void executeWorkerTraining() {
+
+		// InitialBuildOrder 吏꾪뻾以묒뿉�뒗 �븘臾닿쾬�룄 �븯吏� �븡�뒿�땲�떎
+		if (isInitialBuildOrderFinished == false) {
+			return;
+		}
+
+		if (MyBotModule.Broodwar.self().minerals() >= 50) {
+			// workerCount = �쁽�옱 �씪袁� �닔 + �깮�궛以묒씤 �씪袁� �닔
+			int workerCount = MyBotModule.Broodwar.self().allUnitCount(InformationManager.Instance().getWorkerType());
+			
+			int eggWorkerCount = 0;
+
+			if (MyBotModule.Broodwar.self().getRace() == Race.Zerg) {
+				for (Unit unit : MyBotModule.Broodwar.self().getUnits()) {
+					if (unit.getType() == UnitType.Zerg_Egg) {
+						// Zerg_Egg �뿉寃� morph 紐낅졊�쓣 �궡由щ㈃ isMorphing = true,
+						// isBeingConstructed = true, isConstructing = true 媛� �맂�떎
+						// Zerg_Egg 媛� �떎瑜� �쑀�떅�쑝濡� 諛붾�뚮㈃�꽌 �깉濡� 留뚮뱾�뼱吏� �쑀�떅�� �옞�떆
+						// isBeingConstructed = true, isConstructing = true 媛�
+						// �릺�뿀�떎媛�,
+						if (unit.isMorphing() && unit.getBuildType() == UnitType.Zerg_Drone) {
+							workerCount++;
+							eggWorkerCount++;
+						}
+					}
+				}
+			} else {
+				for (Unit unit : MyBotModule.Broodwar.self().getUnits()) {
+					if (unit.getType().isResourceDepot()) {
+						if (unit.isTraining()) {
+							workerCount += unit.getTrainingQueue().size();
+						}
+					}
+				}
+			}
+
+			// 理쒖쟻�쓽 �씪袁� �닔 = 誘몃꽕�엫 * (1~1.5) + 媛��뒪 * 3
+			int optimalWorkerCount = 0;
+			for (BaseLocation baseLocation : InformationManager.Instance().getOccupiedBaseLocations(myPlayer)) {
+				optimalWorkerCount += baseLocation.getMinerals().size() * 1.5;
+				optimalWorkerCount += baseLocation.getGeysers().size() * 3;
+			}
+						
+			if (workerCount < optimalWorkerCount) {
+				for (Unit unit : MyBotModule.Broodwar.self().getUnits()) {
+					if (unit.getType() == UnitType.Protoss_Nexus || unit.getType() == UnitType.Terran_Command_Center || unit.getType() == UnitType.Zerg_Larva) {
+						if (unit.isTraining() == false && unit.isMorphing() == false) {
+							// 鍮뚮뱶�걧�뿉 �씪袁� �깮�궛�씠 1媛쒕뒗 �엳�룄濡� �븳�떎
+							if (BuildManager.Instance().buildQueue
+									.getItemCount(InformationManager.Instance().getWorkerType(), null) == 0 && eggWorkerCount == 0) {
+								// std.cout + "worker enqueue" + std.endl;
+								BuildManager.Instance().buildQueue.queueAsLowestPriority(
+										new MetaType(InformationManager.Instance().getWorkerType()), false);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/// Supply DeadLock �삁諛� 諛� SupplyProvider 媛� 遺�議깊빐吏� �긽�솴 �뿉 ���븳 �꽑�젣�쟻 ���쓳�쑝濡쒖꽌<br>
+	/// SupplyProvider瑜� 異붽� 嫄댁꽕/�깮�궛�빀�땲�떎
+	public void executeSupplyManagement() {
+
+		// BasicBot 1.1 Patch Start ////////////////////////////////////////////////
+		// 媛��씠�뱶 異붽� 諛� 肄섏넄 異쒕젰 紐낅졊 二쇱꽍 泥섎━
+
+		// InitialBuildOrder 吏꾪뻾以� �샊�� 洹명썑�씪�룄 �꽌�뵆�씪�씠 嫄대Ъ�씠 �뙆愿대릺�뼱 �뜲�뱶�씫�씠 諛쒖깮�븷 �닔 �엳�뒗�뜲, �씠 �긽�솴�뿉 ���븳 �빐寃곗� 李멸��옄猿섏꽌 �빐二쇱뀛�빞 �빀�땲�떎.
+		// �삤踰꾨줈�뱶媛� �븰�궡�떦�븯嫄곕굹, �꽌�뵆�씪�씠 嫄대Ъ�씠 吏묒쨷 �뙆愿대릺�뒗 �긽�솴�뿉 ���빐  臾댁“嫄댁쟻�쑝濡� �꽌�뵆�씪�씠 鍮뚮뱶 異붽�瑜� �떎�뻾�븯湲� 蹂대떎 癒쇱� �쟾�왂�쟻 ��梨� �뙋�떒�씠 �븘�슂�븷 寃껋엯�땲�떎
+
+		// BWAPI::Broodwar->self()->supplyUsed() > BWAPI::Broodwar->self()->supplyTotal()  �씤 �긽�솴�씠嫄곕굹
+		// BWAPI::Broodwar->self()->supplyUsed() + 鍮뚮뱶留ㅻ땲�� 理쒖긽�떒 �썕�젴 ���긽 �쑀�떅�쓽 unit->getType().supplyRequired() > BWAPI::Broodwar->self()->supplyTotal() �씤 寃쎌슦
+		// �꽌�뵆�씪�씠 異붽�瑜� �븯吏� �븡�쑝硫� �뜑�씠�긽 �쑀�떅 �썕�젴�씠 �븞�릺湲� �븣臾몄뿉 deadlock �긽�솴�씠�씪怨� 蹂� �닔�룄 �엳�뒿�땲�떎.
+		// ��洹� 醫낆”�쓽 寃쎌슦 �씪袁쇱쓣 嫄대Ъ濡� Morph �떆�궗 �닔 �엳湲� �븣臾몄뿉 怨좎쓽�쟻�쑝濡� �씠�윴 �긽�솴�쓣 留뚮뱾湲곕룄 �븯怨�, 
+		// �쟾�닾�뿉 �쓽�빐 �쑀�떅�씠 留롮씠 二쎌쓣 寃껋쑝濡� �삁�긽�릺�뒗 �긽�솴�뿉�꽌�뒗 怨좎쓽�쟻�쑝濡� �꽌�뵆�씪�씠 異붽�瑜� �븯吏� �븡�쓣�닔�룄 �엳湲� �븣臾몄뿉
+		// 李멸��옄猿섏꽌 �옒 �뙋�떒�븯�뀛�꽌 媛쒕컻�븯�떆湲� 諛붾엻�땲�떎.
+		
+		// InitialBuildOrder 吏꾪뻾以묒뿉�뒗 �븘臾닿쾬�룄 �븯吏� �븡�뒿�땲�떎
+		// InitialBuildOrder 吏꾪뻾以묒씠�씪�룄 supplyUsed 媛� supplyTotal 蹂대떎 而ㅼ졇踰꾨━硫� �떎�뻾�븯�룄濡� �빀�땲�떎
+		if (isInitialBuildOrderFinished == false 
+				&& MyBotModule.Broodwar.self().supplyUsed() < MyBotModule.Broodwar.self().supplyTotal()  ) {
+			return;
+		}
+
+		// 1珥덉뿉 �븳踰덈쭔 �떎�뻾
+		if (MyBotModule.Broodwar.getFrameCount() % 24 != 0) {
+			return;
+		}
+
+		// 寃뚯엫�뿉�꽌�뒗 �꽌�뵆�씪�씠 媛믪씠 200源뚯� �엳吏�留�, BWAPI �뿉�꽌�뒗 �꽌�뵆�씪�씠 媛믪씠 400源뚯� �엳�떎
+		// ��湲�留� 1留덈━媛� 寃뚯엫�뿉�꽌�뒗 �꽌�뵆�씪�씠瑜� 0.5 李⑥��븯吏�留�, BWAPI �뿉�꽌�뒗 �꽌�뵆�씪�씠瑜� 1 李⑥��븳�떎
+		if (MyBotModule.Broodwar.self().supplyTotal() < 400) {
+
+			// �꽌�뵆�씪�씠媛� �떎 苑됱갸�쓣�븣 �깉 �꽌�뵆�씪�씠瑜� 吏��쑝硫� 吏��뿰�씠 留롮씠 �씪�뼱�굹誘�濡�, supplyMargin (寃뚯엫�뿉�꽌�쓽 �꽌�뵆�씪�씠 留덉쭊 媛믪쓽 2諛�)留뚰겮 遺�議깊빐吏�硫� �깉 �꽌�뵆�씪�씠瑜� 吏볥룄濡� �븳�떎
+			// �씠�젃寃� 媛믪쓣 �젙�빐�넃�쑝硫�, 寃뚯엫 珥덈컲遺��뿉�뒗 �꽌�뵆�씪�씠瑜� �꼫臾� �씪李� 吏볤퀬, 寃뚯엫 �썑諛섎��뿉�뒗 �꽌�뵆�씪�씠瑜� �꼫臾� �뒭寃� 吏볤쾶 �맂�떎
+			int supplyMargin = 12;
+
+			// currentSupplyShortage 瑜� 怨꾩궛�븳�떎
+			int currentSupplyShortage = MyBotModule.Broodwar.self().supplyUsed() + supplyMargin - MyBotModule.Broodwar.self().supplyTotal();
+
+			if (currentSupplyShortage > 0) {
+				
+				// �깮�궛/嫄댁꽕 以묒씤 Supply瑜� �꽱�떎
+				int onBuildingSupplyCount = 0;
+
+				// ��洹� 醫낆”�씤 寃쎌슦, �깮�궛以묒씤 Zerg_Overlord (Zerg_Egg) 瑜� �꽱�떎. Hatchery �벑 嫄대Ъ�� �꽭吏� �븡�뒗�떎
+				if (MyBotModule.Broodwar.self().getRace() == Race.Zerg) {
+					for (Unit unit : MyBotModule.Broodwar.self().getUnits()) {
+						if (unit.getType() == UnitType.Zerg_Egg && unit.getBuildType() == UnitType.Zerg_Overlord) {
+							onBuildingSupplyCount += UnitType.Zerg_Overlord.supplyProvided();
+						}
+						// 媛볧깭�뼱�궃 Overlord �뒗 �븘吏� SupplyTotal �뿉 諛섏쁺�븞�릺�뼱�꽌, 異붽� 移댁슫�듃瑜� �빐以섏빞�븿
+						if (unit.getType() == UnitType.Zerg_Overlord && unit.isConstructing()) {
+							onBuildingSupplyCount += UnitType.Zerg_Overlord.supplyProvided();
+						}
+					}
+				}
+				// ��洹� 醫낆”�씠 �븘�땶 寃쎌슦, 嫄댁꽕以묒씤 Protoss_Pylon, Terran_Supply_Depot 瑜� �꽱�떎. Nexus, Command Center �벑 嫄대Ъ�� �꽭吏� �븡�뒗�떎
+				else {
+					onBuildingSupplyCount += ConstructionManager.Instance().getConstructionQueueItemCount(
+							InformationManager.Instance().getBasicSupplyProviderUnitType(), null)
+							* InformationManager.Instance().getBasicSupplyProviderUnitType().supplyProvided();
+				}
+
+				// 二쇱꽍泥섎━
+				//System.out.println("currentSupplyShortage : " + currentSupplyShortage + " onBuildingSupplyCount : " + onBuildingSupplyCount);
+
+				if (currentSupplyShortage > onBuildingSupplyCount) {
+					
+					// BuildQueue 理쒖긽�떒�뿉 SupplyProvider 媛� �엳吏� �븡�쑝硫� enqueue �븳�떎
+					boolean isToEnqueue = true;
+					if (!BuildManager.Instance().buildQueue.isEmpty()) {
+						BuildOrderItem currentItem = BuildManager.Instance().buildQueue.getHighestPriorityItem();
+						if (currentItem.metaType.isUnit() 
+							&& currentItem.metaType.getUnitType() == InformationManager.Instance().getBasicSupplyProviderUnitType()) 
+						{
+							isToEnqueue = false;
+						}
+					}
+					if (isToEnqueue) {
+						// 二쇱꽍泥섎━
+						//System.out.println("enqueue supply provider "
+						//		+ InformationManager.Instance().getBasicSupplyProviderUnitType());
+						BuildManager.Instance().buildQueue.queueAsHighestPriority(
+								new MetaType(InformationManager.Instance().getBasicSupplyProviderUnitType()), true);
+					}
+				}
+			}
+		}
+
+		// BasicBot 1.1 Patch End ////////////////////////////////////////////////		
+	}
+
+	/// 諛⑹뼱嫄대Ъ 諛� 怨듦꺽�쑀�떅 �깮�궛 嫄대Ъ�쓣 嫄댁꽕�빀�땲�떎
+	void executeBuildingConstruction() {
+		
+		// InitialBuildOrder 吏꾪뻾以묒뿉�뒗 �븘臾닿쾬�룄 �븯吏� �븡�뒿�땲�떎
+		if (isInitialBuildOrderFinished == false) {
+			return;
+		}
+		
+		// 1珥덉뿉 �븳踰덈쭔 �떎�뻾
+		if (MyBotModule.Broodwar.getFrameCount() % 24 != 0) {
+			return;
+		}
+
+		boolean			isPossibleToConstructDefenseBuildingType1 = false;
+		boolean			isPossibleToConstructDefenseBuildingType2 = false;	
+		boolean			isPossibleToConstructCombatUnitTrainingBuildingType = false;
+		
+		// 諛⑹뼱 嫄대Ъ 利앹꽕�쓣 �슦�꽑�쟻�쑝濡� �떎�떆�븳�떎
+		
+		// �쁽�옱 諛⑹뼱 嫄대Ъ 媛��닔
+		int numberOfMyDefenseBuildingType1 = 0; 
+		int numberOfMyDefenseBuildingType2 = 0;
+		
+		if (myRace == Race.Protoss) {
+			numberOfMyDefenseBuildingType1 += myPlayer.allUnitCount(myDefenseBuildingType1);
+			numberOfMyDefenseBuildingType1 += BuildManager.Instance().buildQueue.getItemCount(myDefenseBuildingType1);
+			numberOfMyDefenseBuildingType1 += ConstructionManager.Instance().getConstructionQueueItemCount(myDefenseBuildingType1, null);
+			numberOfMyDefenseBuildingType2 += myPlayer.allUnitCount(myDefenseBuildingType2);
+			numberOfMyDefenseBuildingType2 += BuildManager.Instance().buildQueue.getItemCount(myDefenseBuildingType2);
+			numberOfMyDefenseBuildingType2 += ConstructionManager.Instance().getConstructionQueueItemCount(myDefenseBuildingType2, null);
+			
+			isPossibleToConstructDefenseBuildingType1 = true;
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Forge) > 0) {
+				isPossibleToConstructDefenseBuildingType2 = true;	
+			}
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Pylon) > 0) {
+				isPossibleToConstructCombatUnitTrainingBuildingType = true;	
+			}
+			
+		}
+		else if (myRace == Race.Terran) {
+			numberOfMyDefenseBuildingType1 += myPlayer.allUnitCount(myDefenseBuildingType1);
+			numberOfMyDefenseBuildingType1 += BuildManager.Instance().buildQueue.getItemCount(myDefenseBuildingType1);
+			numberOfMyDefenseBuildingType1 += ConstructionManager.Instance().getConstructionQueueItemCount(myDefenseBuildingType1, null);
+			numberOfMyDefenseBuildingType2 += myPlayer.allUnitCount(myDefenseBuildingType2);
+			numberOfMyDefenseBuildingType2 += BuildManager.Instance().buildQueue.getItemCount(myDefenseBuildingType2);
+			numberOfMyDefenseBuildingType2 += ConstructionManager.Instance().getConstructionQueueItemCount(myDefenseBuildingType2, null);
+			
+			if (myPlayer.completedUnitCount(UnitType.Terran_Barracks) > 0) {
+				isPossibleToConstructDefenseBuildingType1 = true;	
+			}
+			if (myPlayer.completedUnitCount(UnitType.Terran_Engineering_Bay) > 0) {
+				isPossibleToConstructDefenseBuildingType2 = true;	
+			}
+			isPossibleToConstructCombatUnitTrainingBuildingType = true;	
+			
+		}
+		else if (myRace == Race.Zerg) {
+			// ��洹몄쓽 寃쎌슦 �겕由� 肄쒕줈�땲 媛��닔瑜� �� �븣 �꽦�겙 肄쒕줈�땲 媛��닔源뚯� �룷�븿�빐�꽌 �꽭�뼱�빞, �겕由� 肄쒕줈�땲瑜� 吏��젙�븳 �닽�옄源뚯�留� 留뚮뱺�떎
+			numberOfMyDefenseBuildingType1 += myPlayer.allUnitCount(myDefenseBuildingType1);
+			numberOfMyDefenseBuildingType1 += BuildManager.Instance().buildQueue.getItemCount(myDefenseBuildingType1);
+			numberOfMyDefenseBuildingType1 += ConstructionManager.Instance().getConstructionQueueItemCount(myDefenseBuildingType1, null);
+			numberOfMyDefenseBuildingType1 += myPlayer.allUnitCount(myDefenseBuildingType2);
+			numberOfMyDefenseBuildingType1 += BuildManager.Instance().buildQueue.getItemCount(myDefenseBuildingType2);
+			numberOfMyDefenseBuildingType2 += myPlayer.allUnitCount(myDefenseBuildingType2);
+			numberOfMyDefenseBuildingType2 += BuildManager.Instance().buildQueue.getItemCount(myDefenseBuildingType2);
+
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Spawning_Pool) > 0) {
+				isPossibleToConstructDefenseBuildingType1 = true;	
+			}
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Creep_Colony) > 0) {
+				isPossibleToConstructDefenseBuildingType2 = true;	
+			}
+			isPossibleToConstructCombatUnitTrainingBuildingType = true;
+		}
+
+		if (isPossibleToConstructDefenseBuildingType1 == true 
+			&& numberOfMyDefenseBuildingType1 < necessaryNumberOfDefenseBuilding1) {
+			if (BuildManager.Instance().buildQueue.getItemCount(myDefenseBuildingType1) == 0 ) {
+				if (BuildManager.Instance().getAvailableMinerals() >= myDefenseBuildingType1.mineralPrice()) {
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(myDefenseBuildingType1, 
+							seedPositionStrategyOfMyDefenseBuildingType, false);
+				}			
+			}
+		}
+		if (isPossibleToConstructDefenseBuildingType2 == true
+			&& numberOfMyDefenseBuildingType2 < necessaryNumberOfDefenseBuilding2) {
+			if (BuildManager.Instance().buildQueue.getItemCount(myDefenseBuildingType2) == 0 ) {
+				if (BuildManager.Instance().getAvailableMinerals() >= myDefenseBuildingType2.mineralPrice()) {
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(myDefenseBuildingType2, 
+							seedPositionStrategyOfMyDefenseBuildingType, false);
+				}			
+			}
+		}
+
+		// �쁽�옱 怨듦꺽 �쑀�떅 �깮�궛 嫄대Ъ 媛��닔
+		int numberOfMyCombatUnitTrainingBuilding = myPlayer.completedUnitCount(InformationManager.Instance().getBasicCombatBuildingType());
+		numberOfMyCombatUnitTrainingBuilding += BuildManager.Instance().buildQueue.getItemCount(InformationManager.Instance().getBasicCombatBuildingType());
+		numberOfMyCombatUnitTrainingBuilding += ConstructionManager.Instance().getConstructionQueueItemCount(InformationManager.Instance().getBasicCombatBuildingType(), null);
+		
+		// 怨듦꺽 �쑀�떅 �깮�궛 嫄대Ъ 利앹꽕 : �룉�씠 �궓�븘�룎硫� �떎�떆. 理쒕� 6媛� 源뚯�留�
+		if (isPossibleToConstructCombatUnitTrainingBuildingType == true
+			&& BuildManager.Instance().getAvailableMinerals() > 300 
+			&& numberOfMyCombatUnitTrainingBuilding < 6) {
+			// 寃뚯씠�듃�썾�씠 / 諛곕윮 / �빐泥섎━ 利앹꽕
+			if (BuildManager.Instance().buildQueue.getItemCount(InformationManager.Instance().getBasicCombatBuildingType()) == 0 ) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(InformationManager.Instance().getBasicCombatBuildingType(), false);
+			}
+		}
+	}
+
+	/// �뾽洹몃젅�씠�뱶 諛� �뀒�겕 由ъ꽌移섎�� �떎�뻾�빀�땲�떎
+	void executeUpgradeAndTechResearch() {
+
+		// InitialBuildOrder 吏꾪뻾以묒뿉�뒗 �븘臾닿쾬�룄 �븯吏� �븡�뒿�땲�떎
+		if (isInitialBuildOrderFinished == false) {
+			return;
+		}
+		
+		// 1珥덉뿉 �븳踰덈쭔 �떎�뻾
+		if (MyBotModule.Broodwar.getFrameCount() % 24 != 0) {
+			return;
+		}
+		
+		boolean			isTimeToStartUpgradeType1 = false;	/// �뾽洹몃젅�씠�뱶�븷 ���씠諛띿씤媛�
+		boolean			isTimeToStartUpgradeType2 = false;	/// �뾽洹몃젅�씠�뱶�븷 ���씠諛띿씤媛�
+		boolean			isTimeToStartUpgradeType3 = false;	/// �뾽洹몃젅�씠�뱶�븷 ���씠諛띿씤媛�
+		boolean			isTimeToStartResearchTech1 = false;	/// 由ъ꽌移섑븷 ���씠諛띿씤媛�
+		boolean			isTimeToStartResearchTech2 = false;	/// 由ъ꽌移섑븷 ���씠諛띿씤媛�
+		boolean			isTimeToStartResearchTech3 = false;	/// 由ъ꽌移섑븷 ���씠諛띿씤媛�
+
+		// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섑븷 ���씠諛띿씤吏� �뙋�떒
+		if (myRace == Race.Protoss) {
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �뱶�씪援� 4湲� �깮�궛 �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Cybernetics_Core) > 0
+					&& myPlayer.completedUnitCount(UnitType.Protoss_Dragoon) >= 4) {
+				isTimeToStartUpgradeType1 = true;
+			}
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 吏덈읉 6湲� �깮�궛 �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Citadel_of_Adun) > 0
+				&& myPlayer.completedUnitCount(UnitType.Protoss_Zealot) >= 6) {
+				isTimeToStartUpgradeType2 = true;
+			}		
+	
+			// �궗�씠�삤�땳�뒪�넱�� 理쒖슦�꽑�쑝濡� �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Templar_Archives) > 0) {
+				isTimeToStartResearchTech1 = true;
+			}
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �궗�씠�삤�땳�뒪�넱 由ъ꽌移� �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Templar_Archives) > 0
+				&& myPlayer.hasResearched(necessaryTechType1) == true) {
+				isTimeToStartUpgradeType3 = true;
+				isTimeToStartResearchTech2 = true;
+			}			
+			
+		}
+		else if (myRace == Race.Terran) {		
+			// �떆利덈え�뱶�뒗 理쒖슦�꽑�쑝濡� �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Terran_Machine_Shop) > 0) {
+				isTimeToStartResearchTech1 = true;
+			}			
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �꺊�겕 2湲� �깮�궛 �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Terran_Academy) > 0
+				&& myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Tank_Mode) + myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Siege_Mode) >= 2) {
+				isTimeToStartUpgradeType1 = true;
+			}
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �꺊�겕 2湲� �깮�궛 �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Terran_Engineering_Bay) > 0
+				&& myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Tank_Mode) + myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Siege_Mode) >= 2) {
+				isTimeToStartUpgradeType2 = true;
+			}			
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �씠�씪�뵒�뿉�씠�듃 由ъ꽌移� �썑 由ъ꽌移섑븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Terran_Science_Facility) > 0) {
+				isTimeToStartResearchTech2 = true;
+			}
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �씠�씪�뵒�뿉�씠�듃 由ъ꽌移� �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Terran_Science_Facility) > 0
+				&& myPlayer.hasResearched(necessaryTechType2) == true) {
+				isTimeToStartUpgradeType3 = true;
+			}			
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �궗�씠�뼵�뒪踰좎뒳 2湲� �깮�궛 �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Terran_Physics_Lab) > 0
+					&& myPlayer.completedUnitCount(UnitType.Terran_Science_Vessel) >= 2) {
+				isTimeToStartResearchTech3 = true;
+			}			
+		}
+		else if (myRace == Race.Zerg) {
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �엳�뱶�씪 4湲� �깮�궛 �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk_Den) > 0
+					&& myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk) >= 4) {
+				isTimeToStartUpgradeType1 = true;
+			}
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �엳�뱶�씪 �궗�젙嫄곕━ �뾽洹몃젅�씠�뱶 �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.getUpgradeLevel(UpgradeType.Grooved_Spines) > 0) {
+				isTimeToStartUpgradeType2 = true;
+			}			
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �윭而� 由ъ꽌移� �썑 �뾽洹몃젅�씠�뱶�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Lair) > 0 && myPlayer.hasResearched(TechType.Lurker_Aspect)) {
+				isTimeToStartUpgradeType3 = true;
+			}			
+			// �윭而ㅻ뒗 理쒖슦�꽑�쑝濡� 由ъ꽌移섑븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk_Den) > 0 && myPlayer.completedUnitCount(UnitType.Zerg_Lair) > 0) {
+				isTimeToStartResearchTech1 = true;
+			}
+			// 而⑥뒛�� 理쒖슦�꽑�쑝濡� 由ъ꽌移섑븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Defiler_Mound) > 0) {
+				isTimeToStartResearchTech2 = true;
+			}			
+			// �뾽洹몃젅�씠�뱶 / 由ъ꽌移섎�� �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 而⑥뒛 由ъ꽌移� �썑 由ъ꽌移섑븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Defiler_Mound) > 0
+					&& myPlayer.hasResearched(necessaryTechType2) == true) {
+				isTimeToStartResearchTech3 = true;
+			}			
+		}
+		
+		// �뀒�겕 由ъ꽌移섎뒗 �넂�� �슦�꽑�닚�쐞濡� �슦�꽑�쟻�쑝濡� �떎�뻾
+		if (isTimeToStartResearchTech1) 
+		{
+			if (myPlayer.isResearching(necessaryTechType1) == false
+				&& myPlayer.hasResearched(necessaryTechType1) == false
+				&& BuildManager.Instance().buildQueue.getItemCount(necessaryTechType1) == 0)
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(necessaryTechType1, true);
+			}
+		}
+		
+		if (isTimeToStartResearchTech2) 
+		{
+			if (myPlayer.isResearching(necessaryTechType2) == false
+				&& myPlayer.hasResearched(necessaryTechType2) == false
+				&& BuildManager.Instance().buildQueue.getItemCount(necessaryTechType2) == 0)
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(necessaryTechType2, true);
+			}
+		}
+		
+		if (isTimeToStartResearchTech3) 
+		{
+			if (myPlayer.isResearching(necessaryTechType3) == false
+				&& myPlayer.hasResearched(necessaryTechType3) == false
+				&& BuildManager.Instance().buildQueue.getItemCount(necessaryTechType3) == 0)
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(necessaryTechType3, true);
+			}
+		}		
+		
+		// �뾽洹몃젅�씠�뱶�뒗 �궙�� �슦�꽑�닚�쐞濡� �떎�뻾
+		if (isTimeToStartUpgradeType1) 
+		{
+			if (myPlayer.getUpgradeLevel(necessaryUpgradeType1) == 0 
+				&& myPlayer.isUpgrading(necessaryUpgradeType1) == false
+				&& BuildManager.Instance().buildQueue.getItemCount(necessaryUpgradeType1) == 0)
+			{
+				BuildManager.Instance().buildQueue.queueAsLowestPriority(necessaryUpgradeType1, false);
+			}
+		}
+		
+		if (isTimeToStartUpgradeType2) 
+		{
+			if (myPlayer.getUpgradeLevel(necessaryUpgradeType2) == 0 
+				&& myPlayer.isUpgrading(necessaryUpgradeType2) == false
+				&& BuildManager.Instance().buildQueue.getItemCount(necessaryUpgradeType2) == 0)
+			{
+				BuildManager.Instance().buildQueue.queueAsLowestPriority(necessaryUpgradeType2, false);
+			}
+		}
+
+		if (isTimeToStartUpgradeType3) 
+		{
+			if (myPlayer.getUpgradeLevel(necessaryUpgradeType3) == 0 
+				&& myPlayer.isUpgrading(necessaryUpgradeType3) == false
+				&& BuildManager.Instance().buildQueue.getItemCount(necessaryUpgradeType3) == 0)
+			{
+				BuildManager.Instance().buildQueue.queueAsLowestPriority(necessaryUpgradeType3, false);
+			}
+		}
+
+		// BWAPI 4.1.2 �쓽 踰꾧렇�븣臾몄뿉, �삤踰꾨줈�뱶 �뾽洹몃젅�씠�뱶瑜� �쐞�빐�꽌�뒗 諛섎뱶�떆 Zerg_Lair 媛� �엳�뼱�빞�븿		
+		if (myRace == Race.Zerg) {
+			if (BuildManager.Instance().buildQueue.getItemCount(UpgradeType.Pneumatized_Carapace) > 0) {
+				if (myPlayer.allUnitCount(UnitType.Zerg_Lair) == 0 
+					&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Zerg_Lair) == 0) 
+				{
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Zerg_Lair, false);					
+				}
+			}
+		}
+		
+	}
+
+	/// �듅�닔 �쑀�떅�쓣 �깮�궛�븷 �닔 �엳�룄濡� �뀒�겕�듃由ъ뿉 �뵲�씪 嫄댁꽕�쓣 �떎�떆�빀�땲�떎
+	void executeTechTreeUpConstruction() {
+
+		// InitialBuildOrder 吏꾪뻾以묒뿉�뒗 �븘臾닿쾬�룄 �븯吏� �븡�뒿�땲�떎
+		if (isInitialBuildOrderFinished == false) {
+			return;
+		}
+		
+		// 1珥덉뿉 �븳踰덈쭔 �떎�뻾
+		if (MyBotModule.Broodwar.getFrameCount() % 24 != 0) {
+			return;
+		}
+
+		if (myRace == Race.Protoss) {
+			
+			// 怨좉툒 嫄대Ъ �깮�궛�쓣 �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �뱶�씪援� 2湲� �깮�궛 �썑 嫄댁꽕�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Cybernetics_Core) > 0
+				&& myPlayer.completedUnitCount(UnitType.Protoss_Dragoon) >= 4
+				&& myPlayer.allUnitCount(UnitType.Protoss_Robotics_Facility) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Protoss_Robotics_Facility) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Protoss_Robotics_Facility, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Protoss_Robotics_Facility, true);
+			}
+
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Robotics_Facility) > 0
+				&& myPlayer.allUnitCount(UnitType.Protoss_Observatory) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Protoss_Observatory) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Protoss_Observatory, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Protoss_Observatory, true);
+			}		
+
+			// 怨좉툒 嫄대Ъ �깮�궛�쓣 �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 吏덈읉 2湲� �깮�궛 �썑 嫄댁꽕�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Cybernetics_Core) > 0
+				&& myPlayer.completedUnitCount(UnitType.Protoss_Zealot) >= 2
+				&& myPlayer.allUnitCount(UnitType.Protoss_Citadel_of_Adun) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Protoss_Citadel_of_Adun) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Protoss_Citadel_of_Adun, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Protoss_Citadel_of_Adun, true);
+			}
+
+			// 怨좉툒 嫄대Ъ �깮�궛�쓣 �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �뱶�씪援� 4湲� �깮�궛 �썑 嫄댁꽕�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Protoss_Citadel_of_Adun) > 0
+				&& myPlayer.completedUnitCount(UnitType.Protoss_Dragoon) >= 4
+				&& myPlayer.allUnitCount(UnitType.Protoss_Templar_Archives) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Protoss_Templar_Archives) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Protoss_Templar_Archives, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Protoss_Templar_Archives, true);
+			}
+			
+		}
+		else if (myRace == Race.Terran) {
+			
+			if (myPlayer.completedUnitCount(UnitType.Terran_Barracks) > 0
+				&& myPlayer.allUnitCount(UnitType.Terran_Factory) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Terran_Factory) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Terran_Factory, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Factory, true);
+			}
+
+			if (myPlayer.completedUnitCount(UnitType.Terran_Factory) > 0 ) {
+				
+				// myPlayer.allUnitCount() �쑝濡� �젣��濡� 移댁슫�듃 �븞�릺�뒗 寃쎌슦媛� �엳�뼱�꽌, 蹂꾨룄 移댁슫�듃
+				int addonBuildingCount = 0;
+				for(Unit unit : myPlayer.getUnits()) {
+					if (unit.getType() == UnitType.Terran_Machine_Shop) {
+						addonBuildingCount ++;
+						break;
+					}
+					
+					if (unit.getType() == UnitType.Terran_Factory) {
+						if (unit.isCompleted() && unit.isConstructing()) {
+							addonBuildingCount ++;
+						}
+					}
+				}
+				
+				if (addonBuildingCount == 0
+					&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Terran_Machine_Shop) == 0
+					&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Terran_Machine_Shop, null) == 0) 
+				{
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Machine_Shop, true);
+				}
+			}
+			
+			// 怨좉툒 嫄대Ъ �깮�궛�쓣 �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �꺊�겕 2湲� �깮�궛 �썑 嫄댁꽕�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Terran_Factory) > 0
+				&& myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Tank_Mode) +myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Siege_Mode) >= 2
+				&& myPlayer.allUnitCount(UnitType.Terran_Starport) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Terran_Starport) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Terran_Starport, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Starport, true);
+			}
+
+			if (myPlayer.completedUnitCount(UnitType.Terran_Starport) > 0) {
+
+				// myPlayer.allUnitCount() �쑝濡� �젣��濡� 移댁슫�듃 �븞�릺�뒗 寃쎌슦媛� �엳�뼱�꽌, 蹂꾨룄 移댁슫�듃
+				int addonBuildingCount = 0;
+				for(Unit unit : myPlayer.getUnits()) {
+					if (unit.getType() == UnitType.Terran_Control_Tower) {
+						addonBuildingCount ++;
+						break;
+					}
+					
+					if (unit.getType() == UnitType.Terran_Starport) {
+						if (unit.isCompleted() && unit.isConstructing()) {
+							addonBuildingCount ++;
+						}
+					}
+				}
+				
+				if (addonBuildingCount == 0
+					&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Terran_Control_Tower) == 0
+					&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Terran_Control_Tower, null) == 0) 
+				{
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Control_Tower, true);
+				}		
+			}
+			
+			// 怨좉툒 嫄대Ъ �깮�궛�쓣 �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �꺊�겕 2湲� �깮�궛 �썑 嫄댁꽕�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Terran_Starport) > 0
+				&& myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Tank_Mode) +myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Siege_Mode) >= 2
+				&& myPlayer.allUnitCount(UnitType.Terran_Science_Facility) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Terran_Science_Facility) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Terran_Science_Facility, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Science_Facility, true);
+			}
+
+			if (myPlayer.completedUnitCount(UnitType.Terran_Science_Facility) > 0 ) {
+				
+				// myPlayer.allUnitCount() �쑝濡� �젣��濡� 移댁슫�듃 �븞�릺�뒗 寃쎌슦媛� �엳�뼱�꽌, 蹂꾨룄 移댁슫�듃
+				int addonBuildingCount = 0;
+				for(Unit unit : myPlayer.getUnits()) {
+					if (unit.getType() == UnitType.Terran_Physics_Lab) {
+						addonBuildingCount ++;
+						break;
+					}
+					
+					if (unit.getType() == UnitType.Terran_Science_Facility) {
+						if (unit.isCompleted() && unit.isConstructing()) {
+							addonBuildingCount ++;
+						}
+					}
+				}
+				
+				if (addonBuildingCount == 0
+					&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Terran_Physics_Lab) == 0
+					&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Terran_Physics_Lab, null) == 0) 
+				{
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Physics_Lab, true);
+				}
+			}
+
+		}
+		else if (myRace == Race.Zerg) {
+			// 怨좉툒 嫄대Ъ �깮�궛�쓣 �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �엳�뱶�씪由ъ뒪�겕 4湲� �깮�궛 �썑 嫄댁꽕�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Lair) > 0
+				&& myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk) >= 4
+				&& myPlayer.allUnitCount(UnitType.Zerg_Queens_Nest) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Zerg_Queens_Nest) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Zerg_Queens_Nest, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Zerg_Queens_Nest, true);
+			}
+			
+			// 怨좉툒 嫄대Ъ �깮�궛�쓣 �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �엳�뱶�씪由ъ뒪�겕 4湲� �깮�궛 �썑 嫄댁꽕�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Lair) > 0
+				&& myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk) >= 4
+				&& myPlayer.completedUnitCount(UnitType.Zerg_Queens_Nest) > 0
+				&& myPlayer.allUnitCount(UnitType.Zerg_Hive) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Zerg_Hive) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Zerg_Hive, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Zerg_Hive, true);
+			}
+
+			// 怨좉툒 嫄대Ъ �깮�궛�쓣 �꼫臾� �꽦湲됲븯寃� �븯�떎媛� �쐞�뿕�뿉 鍮좎쭏 �닔 �엳�쑝誘�濡�, 理쒖냼 �엳�뱶�씪由ъ뒪�겕 4湲� �깮�궛 �썑 嫄댁꽕�븳�떎
+			if (myPlayer.completedUnitCount(UnitType.Zerg_Hive) > 0
+				&& myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk) >= 4
+				&& myPlayer.allUnitCount(UnitType.Zerg_Defiler_Mound) == 0
+				&& BuildManager.Instance().buildQueue.getItemCount(UnitType.Zerg_Defiler_Mound) == 0
+				&& ConstructionManager.Instance().getConstructionQueueItemCount(UnitType.Zerg_Defiler_Mound, null) == 0) 
+			{
+				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Zerg_Defiler_Mound, true);
+			}
+			
+		}
+		
+	}
+
+
+	/// 怨듦꺽�쑀�떅�쓣 怨꾩냽 異붽� �깮�궛�빀�땲�떎
+	public void executeCombatUnitTraining() {
+
+		// InitialBuildOrder 吏꾪뻾以묒뿉�뒗 �븘臾닿쾬�룄 �븯吏� �븡�뒿�땲�떎
+		if (isInitialBuildOrderFinished == false) {
+			return;
+		}
+
+		// 1珥덉뿉 4踰덈쭔 �떎�뻾
+		if (MyBotModule.Broodwar.getFrameCount() % 6 != 0) {
+			return;
+		}
+		
+		if (myPlayer.supplyUsed() <= 390 ) 
+		{
+			// 怨듦꺽 �쑀�떅 �깮�궛
+			UnitType nextUnitTypeToTrain = getNextCombatUnitTypeToTrain();
+			
+			UnitType producerType = (new MetaType(nextUnitTypeToTrain)).whatBuilds();
+			
+			for(Unit unit : myPlayer.getUnits()) {
+				
+				if (unit.getType() == producerType) {
+					if (unit.isTraining() == false && unit.isMorphing() == false) {
+
+						if (BuildManager.Instance().buildQueue.getItemCount(nextUnitTypeToTrain) == 0) {	
+
+							boolean isPossibleToTrain = false;
+							if (nextUnitTypeToTrain == UnitType.Protoss_Zealot) {
+								if (myPlayer.completedUnitCount(UnitType.Protoss_Gateway) > 0 ) {
+									isPossibleToTrain = true;
+								}							
+							}/*
+							else if (nextUnitTypeToTrain == UnitType.Protoss_Dragoon) {
+								if (myPlayer.completedUnitCount(UnitType.Protoss_Gateway) > 0 && myPlayer.completedUnitCount(UnitType.Protoss_Cybernetics_Core) > 0 ) {
+									isPossibleToTrain = true;
+								}							
+							}
+							else if (nextUnitTypeToTrain == UnitType.Protoss_Dark_Templar) {
+								if (myPlayer.completedUnitCount(UnitType.Protoss_Gateway) > 0 && myPlayer.completedUnitCount(UnitType.Protoss_Templar_Archives) > 0 ) {
+									isPossibleToTrain = true;
+								}							
+							}*/
+							else if (nextUnitTypeToTrain == UnitType.Protoss_Scout) {
+								if (myPlayer.completedUnitCount(UnitType.Protoss_Stargate) > 0 && myPlayer.completedUnitCount(UnitType.Protoss_Cybernetics_Core) > 0 ) {
+									isPossibleToTrain = true;
+								}							
+							}
+							else if (nextUnitTypeToTrain == UnitType.Terran_Marine) {
+								if (myPlayer.completedUnitCount(UnitType.Terran_Barracks) > 0 ) {
+									isPossibleToTrain = true;
+								}							
+							}
+							else if (nextUnitTypeToTrain == UnitType.Terran_Medic) {
+								if (myPlayer.completedUnitCount(UnitType.Terran_Barracks) > 0 && myPlayer.completedUnitCount(UnitType.Terran_Academy) > 0 ) {
+									isPossibleToTrain = true;
+								}							
+							}
+							else if (nextUnitTypeToTrain == UnitType.Terran_Siege_Tank_Tank_Mode) {
+								if (myPlayer.completedUnitCount(UnitType.Factories) > 0 && myPlayer.completedUnitCount(UnitType.Terran_Machine_Shop) > 0 ) {
+									isPossibleToTrain = true;
+								}							
+							}
+							else if (nextUnitTypeToTrain == UnitType.Zerg_Zergling ) {
+								if (myPlayer.completedUnitCount(UnitType.Zerg_Spawning_Pool) > 0) {
+									isPossibleToTrain = true;
+								}							
+							}
+							else if (nextUnitTypeToTrain == UnitType.Zerg_Hydralisk) {
+								if (myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk_Den) > 0) {
+									isPossibleToTrain = true;
+								}							
+							}
+							else if (nextUnitTypeToTrain == UnitType.Zerg_Lurker) {
+								if (unit.getType() == UnitType.Zerg_Hydralisk 
+									&& myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk_Den) > 0 
+									&& myPlayer.hasResearched(TechType.Lurker_Aspect) == true) {
+									isPossibleToTrain = true;
+								}							
+							}
+							
+							if (isPossibleToTrain) {
+								BuildManager.Instance().buildQueue.queueAsLowestPriority(nextUnitTypeToTrain, false);
+							}
+							
+							nextTargetIndexOfBuildOrderArray++;
+							if (nextTargetIndexOfBuildOrderArray >= buildOrderArrayOfMyCombatUnitType.length) {
+								nextTargetIndexOfBuildOrderArray = 0;
+							}	
+
+							break;
+						}
+					}
+				}
+			}
+			
+			// �듅�닔 �쑀�떅 �깮�궛			
+			if (BuildManager.Instance().buildQueue.getItemCount(mySpecialUnitType1) == 0) {	
+				
+				boolean isPossibleToTrain = false;
+				if (mySpecialUnitType1 == UnitType.Protoss_Observer) {
+					if (myPlayer.completedUnitCount(UnitType.Protoss_Robotics_Facility) > 0 
+						&& myPlayer.completedUnitCount(UnitType.Protoss_Observatory) > 0 ) {
+						isPossibleToTrain = true;
+					}							
+				}
+				else if (mySpecialUnitType1 == UnitType.Terran_Science_Vessel) {
+					if (myPlayer.completedUnitCount(UnitType.Terran_Starport) > 0 
+						&& myPlayer.completedUnitCount(UnitType.Terran_Control_Tower) > 0 
+						&& myPlayer.completedUnitCount(UnitType.Terran_Science_Facility) > 0 ) {
+						isPossibleToTrain = true;
+					}							
+				}
+				// ��洹� �삤踰꾨줈�뱶�뒗 executeSupplyManagement �뿉�꽌 �씠誘� �깮�궛�븯誘�濡� 異붽� �깮�궛�븷 �븘�슂 �뾾�떎
+				
+				boolean isNecessaryToTrainMore = false;
+				if (myPlayer.allUnitCount(mySpecialUnitType1) + BuildManager.Instance().buildQueue.getItemCount(mySpecialUnitType1) 
+						< maxNumberOfSpecialUnitType1) {
+					isNecessaryToTrainMore = true;
+				}							
+				
+				if (isPossibleToTrain && isNecessaryToTrainMore) {
+					
+					producerType = (new MetaType(mySpecialUnitType1)).whatBuilds();
+
+					for(Unit unit : myPlayer.getUnits()) {
+						if (unit.getType() == producerType) {
+							if (unit.isTraining() == false && unit.isMorphing() == false) {
+		
+								BuildManager.Instance().buildQueue.queueAsLowestPriority(mySpecialUnitType1, true);
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			if (BuildManager.Instance().buildQueue.getItemCount(mySpecialUnitType2) == 0) {	
+				
+				boolean isPossibleToTrain = false;
+/*
+				if (mySpecialUnitType2 == UnitType.Protoss_High_Templar) {
+					if (myPlayer.completedUnitCount(UnitType.Protoss_Gateway) > 0 
+							&& myPlayer.completedUnitCount(UnitType.Protoss_Templar_Archives) > 0 ) {
+						isPossibleToTrain = true;
+					}							
+				}
+				else if (mySpecialUnitType2 == UnitType.Terran_Battlecruiser) {
+					if (myPlayer.completedUnitCount(UnitType.Terran_Starport) > 0 
+							&& myPlayer.completedUnitCount(UnitType.Terran_Physics_Lab) > 0) {
+						isPossibleToTrain = true;
+					}							
+				}
+				else if (mySpecialUnitType2 == UnitType.Zerg_Defiler) {
+					if (myPlayer.completedUnitCount(UnitType.Zerg_Defiler_Mound) > 0) {
+						isPossibleToTrain = true;
+					}							
+				}
+*/				
+				boolean isNecessaryToTrainMore = false;
+				
+				// ��洹� 醫낆”�쓽 寃쎌슦, Egg �븞�뿉 �엳�뒗 寃껉퉴吏� 移댁슫�듃 �빐�빞�븿 
+				int allCountOfSpecialUnitType2 = myPlayer.allUnitCount(mySpecialUnitType2) + BuildManager.Instance().buildQueue.getItemCount(mySpecialUnitType2);
+				if (mySpecialUnitType2.getRace() == Race.Zerg) {
+					for(Unit unit : myPlayer.getUnits()) {
+
+						if (unit.getType() == UnitType.Zerg_Egg && unit.getBuildType() == mySpecialUnitType2) {
+							allCountOfSpecialUnitType2++;
+						}
+						// 媛볧깭�뼱�궃 �쑀�떅�� �븘吏� 諛섏쁺�븞�릺�뼱�엳�쓣 �닔 �엳�뼱�꽌, 異붽� 移댁슫�듃瑜� �빐以섏빞�븿
+						//if (unit.getType() == mySpecialUnitType2 && unit.isConstructing()) {
+						//	allCountOfSpecialUnitType2++;
+						//}
+					}
+					  
+				}
+				if (allCountOfSpecialUnitType2 < maxNumberOfSpecialUnitType2) {
+					isNecessaryToTrainMore = true;
+				}							
+				
+				if (isPossibleToTrain && isNecessaryToTrainMore) {
+					
+					producerType = (new MetaType(mySpecialUnitType2)).whatBuilds();
+					
+					for(Unit unit : myPlayer.getUnits()) {
+						if (unit.getType() == producerType) {
+							if (unit.isTraining() == false && unit.isMorphing() == false) {
+		
+								BuildManager.Instance().buildQueue.queueAsLowestPriority(mySpecialUnitType2, true);
+								break;
+							}
+							
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/// �떎�쓬�뿉 �깮�궛�븷 怨듦꺽�쑀�떅 UnitType �쓣 由ы꽩�빀�땲�떎
+	public UnitType getNextCombatUnitTypeToTrain() {
+		
+		UnitType nextUnitTypeToTrain = null;
+
+		if (buildOrderArrayOfMyCombatUnitType[nextTargetIndexOfBuildOrderArray] == 1) {
+			nextUnitTypeToTrain = myCombatUnitType1;
+		}
+		else if (buildOrderArrayOfMyCombatUnitType[nextTargetIndexOfBuildOrderArray] == 2) {
+			nextUnitTypeToTrain = myCombatUnitType2;
+		}
+		else {
+			nextUnitTypeToTrain = myCombatUnitType3;
+		}
+		
+		return nextUnitTypeToTrain;	
+	}
+	
+	// BasicBot 1.1 Patch Start ////////////////////////////////////////////////
+	// 寃쎄린 寃곌낵 �뙆�씪 Save / Load 諛� 濡쒓렇�뙆�씪 Save �삁�젣 異붽�
+
+	/// 怨쇨굅 �쟾泥� 寃뚯엫 湲곕줉�쓣 濡쒕뵫�빀�땲�떎
+	void loadGameRecordList() {
+	
+		// 怨쇨굅�쓽 寃뚯엫�뿉�꽌 bwapi-data\write �뤃�뜑�뿉 湲곕줉�뻽�뜕 �뙆�씪�� ���쉶 �꽌踰꾧� bwapi-data\read �뤃�뜑濡� �삷寃⑤넃�뒿�땲�떎
+		// �뵲�씪�꽌, �뙆�씪 濡쒕뵫�� bwapi-data\read �뤃�뜑濡쒕��꽣 �븯�떆硫� �맗�땲�떎
+
+		// TODO : �뙆�씪紐낆� 媛곸옄 遊� 紐낆뿉 留욊쾶 �닔�젙�븯�떆湲� 諛붾엻�땲�떎
+		String gameRecordFileName = "bwapi-data\\read\\NoNameBot_GameRecord.dat";
+		
+		BufferedReader br = null;
+		try {
+			br = new BufferedReader(new FileReader(gameRecordFileName));
+
+			System.out.println("loadGameRecord from file: " + gameRecordFileName);
+
+			String currentLine;
+			StringTokenizer st;  
+			GameRecord tempGameRecord;
+			while ((currentLine = br.readLine()) != null) {
+				
+				st = new StringTokenizer(currentLine, " ");
+				tempGameRecord = new GameRecord();
+				if (st.hasMoreTokens()) { tempGameRecord.mapName = st.nextToken();}
+				if (st.hasMoreTokens()) { tempGameRecord.myName = st.nextToken();}
+				if (st.hasMoreTokens()) { tempGameRecord.myRace = st.nextToken();}
+				if (st.hasMoreTokens()) { tempGameRecord.myWinCount = Integer.parseInt(st.nextToken());}
+				if (st.hasMoreTokens()) { tempGameRecord.myLoseCount = Integer.parseInt(st.nextToken());}
+				if (st.hasMoreTokens()) { tempGameRecord.enemyName = st.nextToken();}
+				if (st.hasMoreTokens()) { tempGameRecord.enemyRace = st.nextToken();}
+				if (st.hasMoreTokens()) { tempGameRecord.enemyRealRace = st.nextToken();}
+				if (st.hasMoreTokens()) { tempGameRecord.gameFrameCount = Integer.parseInt(st.nextToken());}
+			
+				gameRecordList.add(tempGameRecord);
+			}
+		} catch (FileNotFoundException e) {
+			System.out.println("loadGameRecord failed. Could not open file :" + gameRecordFileName);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (br != null) br.close();
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+		}		
+	}
+
+	/// 怨쇨굅 �쟾泥� 寃뚯엫 湲곕줉 + �씠踰� 寃뚯엫 湲곕줉�쓣 ���옣�빀�땲�떎
+	void saveGameRecordList(boolean isWinner) {
+
+		// �씠踰� 寃뚯엫�쓽 �뙆�씪 ���옣�� bwapi-data\write �뤃�뜑�뿉 �븯�떆硫� �맗�땲�떎.
+		// bwapi-data\write �뤃�뜑�뿉 ���옣�맂 �뙆�씪�� ���쉶 �꽌踰꾧� �떎�쓬 寃쎄린 �븣 bwapi-data\read �뤃�뜑濡� �삷寃⑤넃�뒿�땲�떎
+
+		// TODO : �뙆�씪紐낆� 媛곸옄 遊� 紐낆뿉 留욊쾶 �닔�젙�븯�떆湲� 諛붾엻�땲�떎
+		String gameRecordFileName = "bwapi-data\\write\\NoNameBot_GameRecord.dat";
+
+		System.out.println("saveGameRecord to file: " + gameRecordFileName);
+
+		String mapName = MyBotModule.Broodwar.mapFileName();
+		mapName = mapName.replace(' ', '_');
+		String enemyName = MyBotModule.Broodwar.enemy().getName();
+		enemyName = enemyName.replace(' ', '_');
+		String myName = MyBotModule.Broodwar.self().getName();
+		myName = myName.replace(' ', '_');
+
+		/// �씠踰� 寃뚯엫�뿉 ���븳 湲곕줉
+		GameRecord thisGameRecord = new GameRecord();
+		thisGameRecord.mapName = mapName;
+		thisGameRecord.myName = myName;
+		thisGameRecord.myRace = MyBotModule.Broodwar.self().getRace().toString();
+		thisGameRecord.enemyName = enemyName;
+		thisGameRecord.enemyRace = MyBotModule.Broodwar.enemy().getRace().toString();
+		thisGameRecord.enemyRealRace = InformationManager.Instance().enemyRace.toString();
+		thisGameRecord.gameFrameCount = MyBotModule.Broodwar.getFrameCount();
+		if (isWinner) {
+			thisGameRecord.myWinCount = 1;
+			thisGameRecord.myLoseCount = 0;
+		}
+		else {
+			thisGameRecord.myWinCount = 0;
+			thisGameRecord.myLoseCount = 1;
+		}
+		// �씠踰� 寃뚯엫 湲곕줉�쓣 �쟾泥� 寃뚯엫 湲곕줉�뿉 異붽�
+		gameRecordList.add(thisGameRecord);
+
+		// �쟾泥� 寃뚯엫 湲곕줉 write
+		StringBuilder ss = new StringBuilder();
+		for (GameRecord gameRecord : gameRecordList) {
+			ss.append(gameRecord.mapName + " ");
+			ss.append(gameRecord.myName + " ");
+			ss.append(gameRecord.myRace + " ");
+			ss.append(gameRecord.myWinCount + " ");
+			ss.append(gameRecord.myLoseCount + " ");
+			ss.append(gameRecord.enemyName + " ");
+			ss.append(gameRecord.enemyRace + " ");
+			ss.append(gameRecord.enemyRealRace + " ");
+			ss.append(gameRecord.gameFrameCount + "\n");
+		}
+		
+		Common.overwriteToFile(gameRecordFileName, ss.toString());
+	}
+
+	/// �씠踰� 寃뚯엫 以묎컙�뿉 �긽�떆�쟻�쑝濡� 濡쒓렇瑜� ���옣�빀�땲�떎
+	void saveGameLog() {
+		
+		// 100 �봽�젅�엫 (5珥�) 留덈떎 1踰덉뵫 濡쒓렇瑜� 湲곕줉�빀�땲�떎
+		// 李멸��� �떦 �슜�웾 �젣�븳�씠 �엳怨�, ���엫�븘�썐�룄 �엳湲� �븣臾몄뿉 �옄二� �븯吏� �븡�뒗 寃껋씠 醫뗭뒿�땲�떎
+		// 濡쒓렇�뒗 遊� 媛쒕컻 �떆 �뵒踰꾧퉭 �슜�룄濡� �궗�슜�븯�떆�뒗 寃껋씠 醫뗭뒿�땲�떎
+		if (MyBotModule.Broodwar.getFrameCount() % 100 != 0) {
+			return;
+		}
+
+		// TODO : �뙆�씪紐낆� 媛곸옄 遊� 紐낆뿉 留욊쾶 �닔�젙�븯�떆湲� 諛붾엻�땲�떎
+		String gameLogFileName = "bwapi-data\\write\\NoNameBot_LastGameLog.dat";
+
+		String mapName = MyBotModule.Broodwar.mapFileName();
+		mapName = mapName.replace(' ', '_');
+		String enemyName = MyBotModule.Broodwar.enemy().getName();
+		enemyName = enemyName.replace(' ', '_');
+		String myName = MyBotModule.Broodwar.self().getName();
+		myName = myName.replace(' ', '_');
+
+		StringBuilder ss = new StringBuilder();
+		ss.append(mapName + " ");
+		ss.append(myName + " ");
+		ss.append(MyBotModule.Broodwar.self().getRace().toString() + " ");
+		ss.append(enemyName + " ");
+		ss.append(InformationManager.Instance().enemyRace.toString() + " ");
+		ss.append(MyBotModule.Broodwar.getFrameCount() + " ");
+		ss.append(MyBotModule.Broodwar.self().supplyUsed() + " ");
+		ss.append(MyBotModule.Broodwar.self().supplyTotal() + "\n");
+
+		Common.appendTextToFile(gameLogFileName, ss.toString());
+	}
+
+	// BasicBot 1.1 Patch End //////////////////////////////////////////////////
+	
+}
