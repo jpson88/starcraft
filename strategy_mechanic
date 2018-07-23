@@ -249,11 +249,11 @@ public class StrategyManager {
 			
 			// 공격 모드로 전환하기 위해 필요한 최소한의 유닛 숫자 설정
 			necessaryNumberOfCombatUnitType1 = 0;                      // 공격을 시작하기위해 필요한 최소한의 마린 유닛 숫자 
-			necessaryNumberOfCombatUnitType2 = 16;                       // 공격을 시작하기위해 필요한 최소한의 메딕 유닛 숫자 
+			necessaryNumberOfCombatUnitType2 = 12;                       // 공격을 시작하기위해 필요한 최소한의 메딕 유닛 숫자 
 			necessaryNumberOfCombatUnitType3 = 4;                       // 공격을 시작하기위해 필요한 최소한의 시즈탱크 유닛 숫자 
 			
 			// 공격 유닛 생산 순서 설정
-			buildOrderArrayOfMyCombatUnitType = new int[]{3,2,2,2,2,2}; 	// 마린 마린 마린 메딕 시즈탱크 ...
+			buildOrderArrayOfMyCombatUnitType = new int[]{3,2,2,2,2}; 	// 마린 마린 마린 메딕 시즈탱크 ...
 			nextTargetIndexOfBuildOrderArray = 0; 			    // 다음 생산 순서 index
 			
 			// 특수 유닛 종류 설정 
@@ -265,7 +265,7 @@ public class StrategyManager {
 			necessaryNumberOfSpecialUnitType2 = 0;	
 			
 			// 특수 유닛을 최대 몇개까지 생산 / 전투참가 시킬것인가
-			maxNumberOfSpecialUnitType1 = 4;  
+			maxNumberOfSpecialUnitType1 = 2;  
 			maxNumberOfSpecialUnitType2 = 4;  
 
 			// 방어 건물 종류 및 건설 갯수 설정
@@ -450,22 +450,24 @@ public class StrategyManager {
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 20
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 21
 			
-			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Academy);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Academy);
 			
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Supply_Depot); 
 			
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 22
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Factory); 
-			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Comsat_Station);
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Comsat_Station);
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 23
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Marine); // 24	
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Machine_Shop); 
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Command_Center,
 					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation);
-			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 25
-			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Siege_Tank_Tank_Mode); // 25
-			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 28
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 25
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Siege_Tank_Tank_Mode); // 25
+			//BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_SCV); // 28
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Armory); 
+			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Refinery,
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation);/*
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Comsat_Station,
 					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation);
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Supply_Depot); 
@@ -473,7 +475,7 @@ public class StrategyManager {
 			
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Goliath);
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Terran_Refinery,
-					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation);
+					BuildOrderItem.SeedPositionStrategy.FirstExpansionLocation);*/
 		} 
 		else if (MyBotModule.Broodwar.self().getRace() == Race.Zerg) {
 			BuildManager.Instance().buildQueue.queueAsLowestPriority(UnitType.Zerg_Drone);	//5
@@ -652,10 +654,10 @@ public class StrategyManager {
 			&& myCombatUnitType2List.size() >= necessaryNumberOfCombatUnitType2 
 			&& myCombatUnitType3List.size() >= necessaryNumberOfCombatUnitType3
 			/*&& mySpecialUnitType1List.size() >= necessaryNumberOfSpecialUnitType1
-			&& mySpecialUnitType2List.size() >= necessaryNumberOfSpecialUnitType2*/) 
+		    && mySpecialUnitType2List.size() >= necessaryNumberOfSpecialUnitType2*/) 
 		{	
 			// 공격 유닛이 40 이상 있으면
-			if (myCombatUnitType1List.size() + myCombatUnitType2List.size() + myCombatUnitType3List.size() > 40) {
+			if (myCombatUnitType1List.size() + myCombatUnitType2List.size() + myCombatUnitType3List.size() > 24) {
 				/*
 				// 에너지 100 이상 갖고있는 특수 유닛이 존재하면 
 				boolean isSpecialUnitHasEnoughEnergy = false;
@@ -725,7 +727,24 @@ public class StrategyManager {
 			case SecondChokePoint: myDefenseBuildingPosition = mySecondChokePoint.getCenter(); break;
 			default: myDefenseBuildingPosition = myMainBaseLocation.getPosition(); break;
 		}
-
+		for (Unit selfUnit : MyBotModule.Broodwar.self().getUnits()) {
+			if (selfUnit.getType().isWorker()) {
+				if(selfUnit.isUnderAttack()) {
+					for(Unit someUnit : MyBotModule.Broodwar.getUnitsInRadius(selfUnit.getPosition(), 6 * Config.TILE_SIZE)) {
+						if(someUnit.getPlayer() == enemyPlayer) {
+							for(Unit unit : myAllCombatUnitList) {
+								if(unit == null || unit.exists() == false) {
+									selfUnit.attack(someUnit);
+								}
+								else {
+									unit.attack(someUnit);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 		// 아군 공격유닛을 방어 건물이 세워져있는 위치로 배치시킵니다
 		// 아군 공격유닛을 아군 방어 건물 뒤쪽에 배치시켰다가 적들이 방어 건물을 공격하기 시작했을 때 다함께 싸우게하면 더 좋을 것입니다
 		for (Unit unit : myAllCombatUnitList) {
@@ -877,27 +896,7 @@ public class StrategyManager {
 							}
 						}
 					}
-				}/*
-				else {
-					if(unit.canAttack()) {
-						for (Unit enemyUnit : MyBotModule.Broodwar.enemy().getUnits()) {
-							int unitDistance = unit.getDistance(enemyUnit);
-							// 러커가 버로우 할때 스캔 사용
-							if (enemyUnit.getType() == UnitType.Zerg_Lurker){
-								if(enemyUnit.isBurrowed()){
-									for (Unit findScanner : MyBotModule.Broodwar.self().getUnits()) {
-										if(findScanner.getType() == UnitType.Terran_Comsat_Station){
-											if (unitDistance <= unit.getType().groundWeapon().maxRange()) {
-												if (MyBotModule.Broodwar.getFrameCount() % 60 != 0) continue;
-												findScanner.useTech(TechType.Scanner_Sweep, enemyUnit.getPosition());
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}*/
+				}
 			} 
 		}	
 	}
@@ -1783,7 +1782,7 @@ public class StrategyManager {
 		// 공격 유닛 생산 건물 증설 : 돈이 남아돌면 실시. 최대 6개 까지만
 		if (isPossibleToConstructCombatUnitTrainingBuildingType == true
 			&& BuildManager.Instance().getAvailableMinerals() > 300 
-			&& numberOfMyCombatUnitTrainingBuilding < 6) {
+			&& numberOfMyCombatUnitTrainingBuilding < 5) {
 			// 게이트웨이 / 배럭 / 해처리 증설
 			if (BuildManager.Instance().buildQueue.getItemCount(InformationManager.Instance().getBasicCombatBuildingType()) == 0 ) 
 			{
@@ -2069,7 +2068,7 @@ public class StrategyManager {
 					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Machine_Shop, true);
 				}
 			}
-			
+			/*
 			// 고급 건물 생산을 너무 성급하게 하다가 위험에 빠질 수 있으므로, 최소 탱크 2기 생산 후 건설한다
 			if (myPlayer.completedUnitCount(UnitType.Terran_Factory) > 0
 				&& myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Tank_Mode) +myPlayer.completedUnitCount(UnitType.Terran_Siege_Tank_Siege_Mode) >= 2
@@ -2114,7 +2113,7 @@ public class StrategyManager {
 			{
 				BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Science_Facility, true);
 			}
-			/*
+			
 			if (myPlayer.completedUnitCount(UnitType.Terran_Science_Facility) > 0 ) {
 				
 				// myPlayer.allUnitCount() 으로 제대로 카운트 안되는 경우가 있어서, 별도 카운트
@@ -2206,55 +2205,15 @@ public class StrategyManager {
 						if (BuildManager.Instance().buildQueue.getItemCount(nextUnitTypeToTrain) == 0) {	
 
 							boolean isPossibleToTrain = false;
-							if (nextUnitTypeToTrain == UnitType.Protoss_Zealot) {
-								if (myPlayer.completedUnitCount(UnitType.Protoss_Gateway) > 0 ) {
+
+
+							if (nextUnitTypeToTrain == UnitType.Terran_Siege_Tank_Tank_Mode) {
+								if (myPlayer.completedUnitCount(UnitType.Factories) > 0 && myPlayer.completedUnitCount(UnitType.Terran_Machine_Shop) > 0 ) {
 									isPossibleToTrain = true;
 								}							
 							}
-							else if (nextUnitTypeToTrain == UnitType.Protoss_Dragoon) {
-								if (myPlayer.completedUnitCount(UnitType.Protoss_Gateway) > 0 && myPlayer.completedUnitCount(UnitType.Protoss_Cybernetics_Core) > 0 ) {
-									isPossibleToTrain = true;
-								}							
-							}
-							else if (nextUnitTypeToTrain == UnitType.Protoss_Dark_Templar) {
-								if (myPlayer.completedUnitCount(UnitType.Protoss_Gateway) > 0 && myPlayer.completedUnitCount(UnitType.Protoss_Templar_Archives) > 0 ) {
-									isPossibleToTrain = true;
-								}							
-							}
-							/*else if (nextUnitTypeToTrain == UnitType.Terran_Marine) {
-								if (myPlayer.completedUnitCount(UnitType.Terran_Barracks) > 0 ) {
-									isPossibleToTrain = true;
-								}							
-							}
-							else if (nextUnitTypeToTrain == UnitType.Terran_Medic) {
-								if (myPlayer.completedUnitCount(UnitType.Terran_Barracks) > 0 && myPlayer.completedUnitCount(UnitType.Terran_Academy) > 0 ) {
-									isPossibleToTrain = true;
-								}							
-							}*/
-							else if (nextUnitTypeToTrain == UnitType.Terran_Goliath) {
-								if (myPlayer.completedUnitCount(UnitType.Terran_Factory) > 0 && myPlayer.completedUnitCount(UnitType.Terran_Armory) > 0 ) {
-									isPossibleToTrain = true;
-								}							
-							}
-							else if (nextUnitTypeToTrain == UnitType.Terran_Siege_Tank_Tank_Mode) {
-								if (myPlayer.completedUnitCount(UnitType.Terran_Factory) > 0 && myPlayer.completedUnitCount(UnitType.Terran_Machine_Shop) > 0 ) {
-									isPossibleToTrain = true;
-								}							
-							}
-							else if (nextUnitTypeToTrain == UnitType.Zerg_Zergling ) {
-								if (myPlayer.completedUnitCount(UnitType.Zerg_Spawning_Pool) > 0) {
-									isPossibleToTrain = true;
-								}							
-							}
-							else if (nextUnitTypeToTrain == UnitType.Zerg_Hydralisk) {
-								if (myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk_Den) > 0) {
-									isPossibleToTrain = true;
-								}							
-							}
-							else if (nextUnitTypeToTrain == UnitType.Zerg_Lurker) {
-								if (unit.getType() == UnitType.Zerg_Hydralisk 
-									&& myPlayer.completedUnitCount(UnitType.Zerg_Hydralisk_Den) > 0 
-									&& myPlayer.hasResearched(TechType.Lurker_Aspect) == true) {
+							else if(nextUnitTypeToTrain == UnitType.Terran_Goliath) {
+								if (myPlayer.completedUnitCount(UnitType.Factories) > 0 && myPlayer.completedUnitCount(UnitType.Terran_Armory) > 0 ) {
 									isPossibleToTrain = true;
 								}							
 							}
@@ -2273,7 +2232,7 @@ public class StrategyManager {
 					}
 				}
 			}
-			
+			/*
 			// 특수 유닛 생산			
 			if (BuildManager.Instance().buildQueue.getItemCount(mySpecialUnitType1) == 0) {	
 				
@@ -2290,7 +2249,7 @@ public class StrategyManager {
 						&& myPlayer.completedUnitCount(UnitType.Terran_Science_Facility) > 0 ) {
 						isPossibleToTrain = true;
 					}							
-				}/*
+				}
 				// 저그 오버로드는 executeSupplyManagement 에서 이미 생산하므로 추가 생산할 필요 없다
 				
 				boolean isNecessaryToTrainMore = false;
@@ -2312,8 +2271,8 @@ public class StrategyManager {
 							}
 						}
 					}
-				}*/
-			}
+				}
+			}*/
 
 /*			if (BuildManager.Instance().buildQueue.getItemCount(mySpecialUnitType2) == 0) {	
 				
