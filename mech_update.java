@@ -10,6 +10,7 @@ import bwapi.Player;
 import bwapi.Position;
 import bwapi.Race;
 import bwapi.TechType;
+import bwapi.TilePosition;
 import bwapi.Unit;
 import bwapi.UnitType;
 import bwapi.UpgradeType;
@@ -52,7 +53,7 @@ public class StrategyManager {
 	// 아군
 	Player myPlayer;
 	Race myRace;
-	
+	int flag = 0;
 	// 적군
 	Player enemyPlayer;
 	Race enemyRace;
@@ -1769,7 +1770,27 @@ public class StrategyManager {
 						}
 					}
 				}
+			}/*
+			for (BaseLocation firstExpansionLocation : InformationManager.Instance().getFirstExpansionLocation(myPlayer)) {
+				optimalWorkerCount += firstExpansionLocation.getMinerals().size() * 1.5;
+				optimalWorkerCount += firstExpansionLocation.getGeysers().size() * 3;
 			}
+			int optimalWorkerCount2 = 0;			
+			if (workerCount < optimalWorkerCount2) {
+				for (Unit unit : MyBotModule.Broodwar.self().getUnits()) {
+					if (unit.getType() == UnitType.Protoss_Nexus || unit.getType() == UnitType.Terran_Command_Center || unit.getType() == UnitType.Zerg_Larva) {
+						if (unit.isTraining() == false && unit.isMorphing() == false) {
+							// 빌드큐에 일꾼 생산이 1개는 있도록 한다
+							if (BuildManager.Instance().buildQueue
+									.getItemCount(InformationManager.Instance().getWorkerType(), null) == 0 && eggWorkerCount == 0) {
+								// std.cout + "worker enqueue" + std.endl;
+								BuildManager.Instance().buildQueue.queueAsLowestPriority(
+										new MetaType(InformationManager.Instance().getWorkerType()), false);
+							}
+						}
+					}
+				}
+			}*/
 		}
 	}
 
@@ -1886,7 +1907,7 @@ public class StrategyManager {
 		boolean			isPossibleToConstructCombatUnitTrainingBuildingType = false;
 		
 		// 방어 건물 증설을 우선적으로 실시한다
-		
+		TilePosition tp = null;
 		// 현재 방어 건물 갯수
 		int numberOfMyDefenseBuildingType1 = 0; 
 		int numberOfMyDefenseBuildingType2 = 0;
@@ -1921,6 +1942,37 @@ public class StrategyManager {
 			}
 			if (myPlayer.completedUnitCount(UnitType.Terran_Engineering_Bay) > 0) {
 				isPossibleToConstructDefenseBuildingType2 = true;	
+			}
+			if(BuildManager.Instance().getAvailableMinerals() > 800) {
+				if(myPlayer.allUnitCount(UnitType.Terran_Command_Center) == 2 && flag == 0){
+					MyBotModule.Broodwar.sendText("BUILD EXPANSION!!!");					
+					tp = InformationManager.Instance().getMainBaseLocation(MyBotModule.Broodwar.self()).getTilePosition();
+					if(quarter == "SE") {
+						tp = new TilePosition(114,64);
+					}
+					else if(quarter == "SW") {
+						tp = new TilePosition(114,64);
+					}
+					else if(quarter == "NE") {
+						tp = new TilePosition(14,64);
+					}
+					else {
+						tp = new TilePosition(14,64);
+					}
+					
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Command_Center, tp, true);
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Refinery, tp, true);
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Factory, tp, true);
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Factory, tp, true);
+					flag = 1;
+				}/*
+				if(myPlayer.allUnitCount(UnitType.Terran_Command_Center) == 3){
+					MyBotModule.Broodwar.sendText("BUILD ANOTHER EXPANSION!!!");					
+					tp = InformationManager.Instance().getMainBaseLocation(MyBotModule.Broodwar.self()).getTilePosition();
+					tp = new TilePosition(64,114);
+					BuildManager.Instance().buildQueue.queueAsHighestPriority(UnitType.Terran_Command_Center, tp, true);
+				}*/
+
 			}
 			isPossibleToConstructCombatUnitTrainingBuildingType = true;	
 			
